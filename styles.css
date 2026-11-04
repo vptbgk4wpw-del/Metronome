@@ -126,47 +126,49 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--red); outli
 .link { font-size: 13px; color: var(--mute); padding: 4px 0; }
 .link:active { color: var(--ink); }
 
-/* ---------- pattern grid ---------- */
-.grid { display: flex; flex-direction: column; gap: 10px; }
-.row { display: flex; gap: 6px; }
-.grp { display: flex; gap: 2px; flex: var(--n) 1 0; min-width: 0; }
-.cell {
+/* ---------- pattern area ---------- */
+.grid { display: flex; flex-direction: column; }
+
+/* ---------- step sequencer (groovebox) ---------- */
+.grid.is-seq {
   flex: 1 1 0;
-  min-width: 0;
-  display: flex; flex-direction: column;
-  gap: 4px;
-  padding: 0;
+  min-height: 150px;
+  justify-content: center;
+  gap: 14px;
+  --pad: clamp(26px, 6.2vh, 52px);
 }
-.bar {
-  position: relative;
-  height: 56px;
-  background: var(--cell);
+.grid.is-seq.two { --pad: clamp(18px, 3.4vh, 40px); gap: 10px; }
+.seq-block { display: flex; flex-direction: column; gap: 3px; }
+.seq-row { display: flex; align-items: stretch; gap: 6px; }
+.seq-head {
+  flex: 0 0 44px;
+  font-size: 11px; font-weight: 700;
+  text-align: left;
+  display: flex; align-items: center;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
-.bar i {
-  position: absolute; left: 0; right: 0; bottom: 0;
-  background: var(--ink);
-  height: 0;
-}
-.cell[data-v="3"] .bar i { height: 100%; }
-.cell[data-v="2"] .bar i { height: 58%; }
-.cell[data-v="1"] .bar i { height: 26%; background: transparent; border: 2px solid var(--ink); }
-.cell[data-v="0"] .bar i { height: 2px; background: var(--hair); }
-.cell.muted .bar i { opacity: 0.18; }
-.cell.on .bar { background: color-mix(in srgb, var(--red) 16%, transparent); }
-.cell.on .bar i { background: var(--red); border-color: var(--red); }
-.cell.on[data-v="1"] .bar i { background: transparent; }
-.cell.on[data-v="0"] .bar i { background: var(--red); }
-.lbl {
-  font-size: 10px; line-height: 1;
-  height: 10px;
+.seq-row.muted .seq-head { color: var(--mute); text-decoration: line-through; font-weight: 400; }
+.seq-grp { display: flex; gap: 2px; flex: var(--n) 1 0; min-width: 0; }
+.seq-num {
+  flex: 1 1 0; min-width: 0;
+  font-size: 10px; line-height: 1; padding-bottom: 3px;
   color: var(--mute);
   font-variant-numeric: tabular-nums;
-  text-align: left;
-  white-space: nowrap; overflow: hidden;
 }
-.lbl.beat { color: var(--ink); font-weight: 700; }
-.grid.dense .bar { height: 46px; }
-.grid.dense .lbl { font-size: 9px; }
+.seq-num.beat { color: var(--ink); font-weight: 700; }
+.seq-num.on { color: var(--red); }
+.pad {
+  flex: 1 1 0; min-width: 0;
+  height: var(--pad);
+  background: var(--cell);
+  position: relative;
+}
+.pad.first { box-shadow: inset 2px 0 0 var(--hair); }
+.pad.hit { background: var(--ink); }
+.seq-row.muted .pad.hit { opacity: 0.22; }
+.pad.on { background: color-mix(in srgb, var(--red) 18%, transparent); }
+.pad.hit.on { background: var(--red); }
+.pad:active { outline: 2px solid var(--red); outline-offset: -2px; }
 
 /* ---------- rhythm clock ---------- */
 .grid.is-clock {
@@ -219,7 +221,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--red); outli
 .lg[data-v="1"] .sw i { height: 30%; background: transparent; border: 1.5px solid var(--ink); }
 .lg[aria-pressed="false"] { color: var(--mute); text-decoration: line-through; }
 .lg[aria-pressed="false"] .sw i { opacity: .2; }
-.legend-links { display: flex; gap: 14px; white-space: nowrap; }
+.legend-links { display: flex; gap: 14px; align-items: center; white-space: nowrap; }
+.seg { display: inline-flex; border: 1px solid var(--ink); }
+.seg button { font-size: 12px; padding: 5px 9px; color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); font-weight: 700; }
 .reset { color: var(--red); }
 
 .note {
@@ -335,18 +340,12 @@ input[type=range]::-moz-range-thumb { width: 18px; height: 18px; background: var
 .sheet-list .m { font-size: 15px; font-variant-numeric: tabular-nums; }
 .sheet-list [aria-current="true"] .nm { color: var(--red); }
 
-@media (min-height: 860px) {
-  .bar { height: 72px; }
-  .grid.dense .bar { height: 56px; }
-}
 @media (max-height: 740px) {
   .bpm { font-size: clamp(52px, 15vw, 80px); padding: 0; }
   .step-btn { height: 44px; width: 44px; }
   .tempo-main { grid-template-columns: 44px 1fr 44px; }
   input[type=range] { display: none; }
   .grid.is-clock { min-height: 190px; }
-  .bar { height: 44px; }
-  .grid.dense .bar { height: 36px; }
 }
 @media (max-height: 620px) {
   .cats { display: flex; overflow-x: auto; scrollbar-width: none; gap: 18px; }
@@ -360,3 +359,6 @@ input[type=range]::-moz-range-thumb { width: 18px; height: 18px; background: var
   :root { --gutter: 12px; }
   .cat { font-size: 13px; }
 }
+
+/* the sequencer lanes label themselves; the legend explains the clock */
+.grid.is-seq ~ .legend .legend-items { visibility: hidden; }

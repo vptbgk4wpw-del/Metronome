@@ -26,7 +26,7 @@ Lokalnie (komputer): `python3 -m http.server` w folderze repo, potem `http://loc
 | Nazwa rytmu / „lista ↓” | lista wszystkich rytmów kategorii |
 | ← → | poprzedni / następny rytm |
 | Zegar rytmiczny | cykl na okręgu (krok 1 u góry, zgodnie z ruchem wskazówek), uderzenia połączone w wielokąt, czerwona wskazówka biegnie po cyklu. Duża kropka = mocne (dum / tom / akcent), mała pełna = wysokie (tek / bak / palma), pusta = lekkie (ka / ghost / sorda). We flamenco 12 jest u góry, jak na tarczy zegara. **Dotknij kropki**, aby zmienić uderzenie; „Przywróć” wraca do oryginału |
-| Siatka / Zegar | przełącza widok: zegar albo słupki w rzędzie |
+| Zegar / Sekwencer | przełącza widok: zegar rytmiczny albo sekwencer w stylu grooveboxa (osobny tor na każde uderzenie, kolumna = krok; dotknięcie pada włącza/wyłącza uderzenie, dotknięcie nazwy toru wycisza tor) |
 | Legenda | dotknięcie wycisza / włącza daną warstwę (np. sam dum) |
 | Duża liczba | tempo; przeciągnij palcem w górę / w dół, albo − / + (przytrzymaj = szybko) |
 | „typowo 60–120” | ustawia typowe tempo dla rytmu |
@@ -34,7 +34,11 @@ Lokalnie (komputer): `python3 -m http.server` w folderze repo, potem `http://loc
 | Puls | dodatkowy klik na każdą miarę / grupę (w metrach aksak: na każdą nierówną grupę 2/3) |
 | Klawiatura | spacja = start/stop, ↑↓ = tempo, ←→ = rytm, T = tap |
 
-**Jednostka tempa** jest podana pod liczbą (♩, ♩., ♪). Metra złożone (6/8, 12/8) liczymy w ćwierćnutach z kropką. Metra aksak / addytywne (5/8, 7/8, 9/8, 10/8) liczymy w ósemkach, tak jak uczy się ich w praktyce tureckiej i arabskiej. Flamenco liczymy w pulsach compás (1–12).
+**Jednostka tempa** to zawsze odczuwalna miara, podana obok słowa „Tempo”:
+- metra proste i nieparzyste (2/4, 4/4, 5/8, 7/8, 9/8, 10/8) → ♩ (ćwierćnuta = 2 ósemki); w aksaku grupa 3 trwa ♩.,
+- metra złożone (6/8, 12/8) → ♩.,
+- clave (son, rumba, bossa, cáscara) → jeden takt 4/4 z 16 szesnastkami, czyli puls „na dwa” kubańskiego 2-taktowego zapisu,
+- flamenco 12-miarowe → pulsy compás.
 
 ## Pliki
 

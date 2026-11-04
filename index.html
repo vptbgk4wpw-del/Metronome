@@ -51,7 +51,10 @@
     <div class="legend-items" id="legend"></div>
     <div class="legend-links">
       <button class="link reset" id="reset" hidden>Przywróć</button>
-      <button class="link" id="view">Siatka</button>
+      <span class="seg" id="views" role="group" aria-label="Widok">
+        <button data-view="clock" aria-pressed="true">Zegar</button>
+        <button data-view="seq" aria-pressed="false">Sekwencer</button>
+      </span>
     </div>
   </section>
 

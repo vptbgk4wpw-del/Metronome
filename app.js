@@ -8,10 +8,18 @@
   const $ = (s) => document.querySelector(s);
 
   /* ---------------------------------------------------------------- state */
-  const STORE = 'metronom.v1';
+  const STORE = 'metronom.v2';
   const defaults = { cat: CATS[0].id, sel: {}, bpm: {}, pulse: false, edits: {}, mute: {}, view: 'clock' };
   let S;
-  try { S = Object.assign({}, defaults, JSON.parse(localStorage.getItem(STORE) || '{}')); }
+  try {
+    let saved = JSON.parse(localStorage.getItem(STORE) || 'null');
+    if (!saved) { // v1 → v2: tempo now refers to the felt beat; drop stored tempos
+      saved = JSON.parse(localStorage.getItem('metronom.v1') || '{}');
+      delete saved.bpm;
+      if (saved.view === 'grid') saved.view = 'seq';
+    }
+    S = Object.assign({}, defaults, saved);
+  }
   catch (e) { S = Object.assign({}, defaults); }
   const save = () => { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) { /* private mode */ } };
 
@@ -282,8 +290,9 @@
 
   function highlight(i) {
     if (i === lastOn) return;
-    if (lastOn >= 0 && cells[lastOn]) cells[lastOn].classList.remove('on');
-    if (i >= 0 && cells[i]) cells[i].classList.add('on');
+    const each = (k, fn) => { const c = cells[k]; if (c) (Array.isArray(c) ? c : [c]).forEach(fn); };
+    if (lastOn >= 0) each(lastOn, (el) => el.classList.remove('on'));
+    if (i >= 0) each(i, (el) => el.classList.add('on'));
     lastOn = i;
   }
 
@@ -340,10 +349,11 @@
   }
 
   function renderGrid() {
-    const clock = S.view !== 'grid';
-    $('#view').textContent = clock ? 'Siatka' : 'Zegar';
+    const clock = S.view !== 'seq';
+    document.querySelectorAll('#views button').forEach((b) =>
+      b.setAttribute('aria-pressed', String((b.dataset.view === 'seq') !== clock)));
     const keep = lastOn;
-    if (clock) renderClock(); else renderBars();
+    if (clock) renderClock(); else renderSeq();
     $('#reset').hidden = !S.edits[rhythm().id];
     if (playing && keep >= 0) highlight(keep);
   }
@@ -395,7 +405,7 @@
     svg += `<circle class="hub" r="1.6"/></svg>`;
 
     const grid = $('#grid');
-    grid.classList.remove('dense');
+    grid.classList.remove('is-seq', 'two');
     grid.classList.add('is-clock');
     grid.innerHTML = `<div class="clock-wrap">${svg}</div>`;
     cells = [...grid.querySelectorAll('.dot')];
@@ -417,59 +427,87 @@
   if ('ResizeObserver' in window) new ResizeObserver(fitClock).observe($('#grid'));
   else window.addEventListener('resize', fitClock);
 
-  function renderBars() {
+  // Groovebox-style step sequencer: one lane per stroke type, one column per step.
+  function renderSeq() {
     handEl = null;
     const r = rhythm();
     const pat = pattern(r);
+    const n = pat.length;
     const gs = groups(r);
-    const starts = beatStarts(r);
     const counts = r.counts ? r.counts.split(/\s+/) : null;
+    const gstarts = new Set();
+    { let i = 0; for (const g of gs) { gstarts.add(i); i += g; } }
+    const lanes = cat().strokes;
+
+    // blocks of <= 16 steps, split at group boundaries
+    const maxRow = Math.ceil(n / Math.ceil(n / 16));
+    const blocks = [];
+    let cur = [], len = 0;
+    for (const g of gs) {
+      if (len + g > maxRow && cur.length) { blocks.push(cur); cur = []; len = 0; }
+      cur.push(g); len += g;
+    }
+    if (cur.length) blocks.push(cur);
+
     const grid = $('#grid');
-    grid.innerHTML = '';
     grid.classList.remove('is-clock');
-    grid.classList.toggle('dense', pat.length > 12);
-    cells = [];
+    grid.classList.add('is-seq');
+    grid.classList.toggle('two', blocks.length > 1);
+    grid.innerHTML = '';
+    cells = Array.from({ length: n }, () => []);
     lastOn = -1;
 
-    // split groups into rows of <= 16 steps, at group boundaries
-    const maxRow = Math.ceil(pat.length / Math.ceil(pat.length / 16));
-    const rows = [];
-    let rowArr = [], rowLen = 0;
-    for (const g of gs) {
-      if (rowLen + g > maxRow && rowArr.length) { rows.push(rowArr); rowArr = []; rowLen = 0; }
-      rowArr.push(g); rowLen += g;
-    }
-    if (rowArr.length) rows.push(rowArr);
-
-    let i = 0, beatNo = 0;
-    for (const row of rows) {
-      const rowEl = document.createElement('div');
-      rowEl.className = 'row';
-      for (const g of row) {
-        const grp = document.createElement('div');
-        grp.className = 'grp';
-        grp.style.setProperty('--n', g);
-        for (let k = 0; k < g; k++, i++) {
-          const ch = pat[i];
-          const v = STRENGTH[ch] || 0;
-          const cell = document.createElement('button');
-          cell.className = 'cell';
-          cell.dataset.v = v;
-          cell.dataset.i = i;
-          if (v && S.mute[r.id + ':' + v]) cell.classList.add('muted');
-          let lbl = '';
-          let isBeatLbl = false;
-          if (counts) { lbl = counts[i] || ''; isBeatLbl = v === 3; }
-          else if (starts.has(i)) { beatNo++; lbl = String(beatNo); isBeatLbl = true; }
-          cell.setAttribute('aria-label', `Krok ${i + 1}: ${strokeName(ch)}`);
-          cell.innerHTML = `<span class="bar"><i></i></span><span class="lbl${isBeatLbl ? ' beat' : ''}">${lbl}</span>`;
-          cell.onclick = () => editStep(+cell.dataset.i);
-          grp.appendChild(cell);
-          cells.push(cell);
+    let start = 0;
+    for (const blk of blocks) {
+      const blockEl = document.createElement('div');
+      blockEl.className = 'seq-block';
+      const rows = [{ kind: 'num' }].concat(lanes.map((l) => ({ kind: 'lane', lane: l })));
+      for (const row of rows) {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'seq-row' + (row.kind === 'num' ? ' nums' : '');
+        const head = document.createElement(row.kind === 'lane' ? 'button' : 'span');
+        head.className = 'seq-head';
+        if (row.kind === 'lane') {
+          const v = STRENGTH[row.lane.c];
+          const muted = !!S.mute[r.id + ':' + v];
+          head.textContent = row.lane.short || row.lane.label;
+          head.title = 'Wycisz / włącz';
+          head.setAttribute('aria-pressed', String(!muted));
+          head.onclick = () => toggleMute(v);
+          if (muted) rowEl.classList.add('muted');
         }
-        rowEl.appendChild(grp);
+        rowEl.appendChild(head);
+        let i = start;
+        for (const g of blk) {
+          const grp = document.createElement('div');
+          grp.className = 'seq-grp';
+          grp.style.setProperty('--n', g);
+          for (let k = 0; k < g; k++, i++) {
+            let el;
+            if (row.kind === 'num') {
+              el = document.createElement('span');
+              el.className = 'seq-num' + ((counts ? r.pattern[i] === 'X' : gstarts.has(i)) ? ' beat' : '');
+              el.textContent = counts ? counts[i] : String(i + 1);
+            } else {
+              el = document.createElement('button');
+              el.className = 'pad';
+              const onLane = pat[i] === row.lane.c;
+              if (onLane) el.classList.add('hit');
+              if (gstarts.has(i)) el.classList.add('first');
+              el.dataset.i = i;
+              el.setAttribute('aria-label', `Krok ${i + 1}, ${row.lane.label}: ${onLane ? 'tak' : 'nie'}`);
+              const step = i, c = row.lane.c;
+              el.onclick = () => setStep(step, pattern(r)[step] === c ? '.' : c);
+            }
+            grp.appendChild(el);
+            cells[i].push(el);
+          }
+          rowEl.appendChild(grp);
+        }
+        blockEl.appendChild(rowEl);
       }
-      grid.appendChild(rowEl);
+      grid.appendChild(blockEl);
+      start += blk.reduce((a2, b2) => a2 + b2, 0);
     }
   }
 
@@ -477,6 +515,12 @@
     if (ch === '.') return 'pauza';
     const s = cat().strokes.find((x) => x.c === ch);
     return s ? s.label : ch;
+  }
+
+  function toggleMute(v) {
+    const k = rhythm().id + ':' + v;
+    if (S.mute[k]) delete S.mute[k]; else S.mute[k] = 1;
+    save(); renderLegend(); renderGrid();
   }
 
   function renderLegend() {
@@ -491,11 +535,7 @@
       b.setAttribute('aria-pressed', String(!S.mute[r.id + ':' + v]));
       b.title = 'Wycisz / włącz';
       b.innerHTML = `<span class="sw"><i></i></span>${s.label}`;
-      b.onclick = () => {
-        const k = r.id + ':' + v;
-        if (S.mute[k]) delete S.mute[k]; else S.mute[k] = 1;
-        save(); renderLegend(); renderGrid();
-      };
+      b.onclick = () => toggleMute(v);
       el.appendChild(b);
     }
   }
@@ -552,11 +592,15 @@
   function saveSoon() { clearTimeout(saveT); saveT = setTimeout(save, 300); }
 
   function editStep(i) {
+    const order = cat().strokes.map((x) => x.c).concat('.');
+    const pos = order.indexOf(pattern(rhythm())[i]);
+    setStep(i, order[(pos + 1) % order.length]);
+  }
+
+  function setStep(i, ch) {
     const r = rhythm();
-    const order = cat().strokes.map((s) => s.c).concat('.');
     const pat = pattern(r).split('');
-    const pos = order.indexOf(pat[i]);
-    pat[i] = order[(pos + 1) % order.length];
+    pat[i] = ch;
     const np = pat.join('');
     if (np === r.pattern) delete S.edits[r.id]; else S.edits[r.id] = np;
     save();
@@ -620,7 +664,9 @@
   $('#next').onclick = () => select(selIdx() + 1);
   $('#openList').onclick = openSheet;
   $('#openList2').onclick = openSheet;
-  $('#view').onclick = () => { S.view = S.view === 'grid' ? 'clock' : 'grid'; save(); renderGrid(); };
+  document.querySelectorAll('#views button').forEach((b) => {
+    b.onclick = () => { S.view = b.dataset.view; save(); renderGrid(); };
+  });
   $('#closeList').onclick = closeSheet;
   $('#reset').onclick = () => { delete S.edits[rhythm().id]; save(); renderGrid(); if (playing) cur.pat = pattern(rhythm()); };
   $('#rRange').onclick = () => { const r = rhythm(); setBpm((r.tempo[0] + r.tempo[1]) / 2); };
