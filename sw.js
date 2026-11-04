@@ -1,5 +1,5 @@
 /* Offline cache for the app shell. Bump VERSION on every release. */
-const VERSION = 'metronom-v1';
+const VERSION = 'metronom-v2';
 const ASSETS = [
   './',
   './index.html',

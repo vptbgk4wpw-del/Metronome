@@ -42,6 +42,11 @@
   // Set of step indexes where a counted beat (group) starts.
   function beatStarts(r) {
     const s = new Set();
+    if (cat().pulse === 'accent') {
+      // flamenco: the click follows the compás accents, not the group starts
+      [...r.pattern].forEach((ch, i) => { if (ch === 'X') s.add(i); });
+      if (s.size) return s;
+    }
     let i = 0;
     for (const g of groups(r)) { s.add(i); i += g; }
     return s;
@@ -187,7 +192,8 @@
 
   function snapshot() {
     const r = rhythm();
-    cur = { r, pat: pattern(r), starts: beatStarts(r), len: r.pattern.length, kit: KITS[cat().kit] };
+    const starts = beatStarts(r);
+    cur = { r, pat: pattern(r), starts, first: Math.min(...starts), len: r.pattern.length, kit: KITS[cat().kit] };
   }
 
   function stepDur() { return 60 / bpmOf(cur.r) / unit(cur.r); }
@@ -200,7 +206,7 @@
       const v = STRENGTH[ch] || 0;
       if (v && !S.mute[cur.r.id + ':' + v]) cur.kit(nextTime, v);
       const isBeat = cur.starts.has(i);
-      if (S.pulse && isBeat) pulseClick(nextTime, i === 0);
+      if (S.pulse && isBeat) pulseClick(nextTime, i === cur.first);
       queue.push({ t: nextTime, i, beat: isBeat });
       nextTime += stepDur();
       step = (i + 1) % cur.len;
@@ -289,7 +295,7 @@
       highlight(hit.i);
       if (hit.beat) {
         const led = $('#led');
-        led.className = 'beat-led on' + (hit.i === 0 ? '' : ' weak');
+        led.className = 'beat-led on' + (hit.i === cur.first ? '' : ' weak');
         clearTimeout(ledTimer);
         ledTimer = setTimeout(() => { led.className = 'beat-led'; }, 90);
       }
@@ -319,7 +325,7 @@
     $('#rAlt').textContent = r.alt || '';
     $('#rMeter').textContent = r.meter;
     $('#rGroup').textContent = r.groupLabel || r.group || '';
-    $('#rNote').textContent = r.note || '';
+    $('#rNote').textContent = (r.note || '') + (r.conf === 'p' ? ' Wzór orientacyjny — źródła potwierdzają metrum, uderzenia warto dopasować.' : '');
     $('#rRange').textContent = `typowo ${r.tempo[0]}–${r.tempo[1]}`;
   }
 
@@ -336,7 +342,7 @@
     lastOn = -1;
 
     // split groups into rows of <= 16 steps, at group boundaries
-    const maxRow = pat.length <= 16 ? 16 : (pat.length % 12 === 0 && pat.length <= 24 ? 12 : 16);
+    const maxRow = Math.ceil(pat.length / Math.ceil(pat.length / 16));
     const rows = [];
     let rowArr = [], rowLen = 0;
     for (const g of gs) {
