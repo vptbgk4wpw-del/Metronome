@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f3f2ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e0e0d" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Metronom">
+<meta name="description" content="Metronom z rytmami świata: latin, flamenco, turkish, arabic, persian, ethiopian.">
+<title>Metronom</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="app">
+
+  <header class="top">
+    <h1 class="brand">Metronom</h1>
+    <span class="beat-led" id="led" aria-hidden="true"></span>
+  </header>
+
+  <nav class="cats" id="cats" role="tablist" aria-label="Kategoria"></nav>
+
+  <div class="title-top">
+    <button class="idx" id="openList2" aria-haspopup="dialog"><span id="rIdx">01/10</span> · lista ↓</button>
+    <span class="arrows">
+      <button class="link" id="prev" aria-label="Poprzedni rytm">←</button>
+      <button class="link" id="next" aria-label="Następny rytm">→</button>
+    </span>
+  </div>
+
+  <section class="title">
+    <button class="title-name" id="openList" aria-haspopup="dialog" aria-label="Lista rytmów">
+      <span class="name" id="rName">—</span>
+      <span class="alt" id="rAlt"></span>
+    </button>
+    <div class="title-meter">
+      <span class="meter" id="rMeter">4/4</span>
+      <span class="group" id="rGroup"></span>
+    </div>
+  </section>
+
+  <section class="grid" id="grid" aria-label="Wzór rytmu (dotknij, aby edytować)"></section>
+
+  <section class="legend">
+    <div class="legend-items" id="legend"></div>
+    <button class="link reset" id="reset" hidden>Przywróć wzór</button>
+  </section>
+
+  <p class="note" id="rNote"></p>
+
+  <section class="tempo">
+    <div class="tempo-head">
+      <span class="label">Tempo</span>
+      <button class="link" id="rRange" title="Ustaw typowe tempo">typowo —</button>
+    </div>
+    <div class="tempo-main">
+      <button class="step-btn" id="minus" aria-label="Wolniej">−</button>
+      <output class="bpm" id="bpm" aria-live="off" title="Przeciągnij w górę/dół">120</output>
+      <button class="step-btn" id="plus" aria-label="Szybciej">+</button>
+    </div>
+    <div class="tempo-unit"><span id="unit">♩</span> = <span id="bpmSmall">120</span> BPM</div>
+    <input type="range" id="slider" min="20" max="400" step="1" value="120" aria-label="Tempo">
+  </section>
+
+  <footer class="controls">
+    <button class="ctl" id="tap">Tap</button>
+    <button class="ctl toggle" id="pulse" aria-pressed="false">Puls</button>
+    <button class="ctl play" id="play" aria-pressed="false">Start</button>
+  </footer>
+
+</main>
+
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+  <div class="sheet-inner">
+    <header class="sheet-head">
+      <h2 id="sheetTitle">—</h2>
+      <button class="link" id="closeList">Zamknij</button>
+    </header>
+    <ol class="sheet-list" id="sheetList"></ol>
+  </div>
+</div>
+
+<script src="rhythms.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
