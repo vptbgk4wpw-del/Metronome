@@ -1,6 +1,6 @@
 # Metronom — rytmy świata
 
-Minimalistyczny metronom (styl szwajcarski / International Typographic Style) z cyklami rytmicznymi z sześciu tradycji:
+Minimalistyczny metronom z zegarem rytmicznym (styl szwajcarski / International Typographic Style) z cyklami rytmicznymi z sześciu tradycji:
 **Latin · Flamenco · Turkish · Arabic · Persian · Ethiopian**.
 
 Zwykła strona HTML + PWA. Nie ma zależności ani kroku budowania. Działa offline i da się ją dodać do ekranu głównego telefonu jak aplikację.
@@ -25,7 +25,8 @@ Lokalnie (komputer): `python3 -m http.server` w folderze repo, potem `http://loc
 | Kategorie (siatka 3×2) | wybór tradycji |
 | Nazwa rytmu / „lista ↓” | lista wszystkich rytmów kategorii |
 | ← → | poprzedni / następny rytm |
-| Siatka słupków | wzór cyklu: wysoki słupek = mocne uderzenie (dum / tom / akcent), średni = wysokie (tek / bak / palma), obrys = lekkie (ka / ghost / sorda). **Dotknij komórki**, aby zmienić uderzenie; „Przywróć wzór” wraca do oryginału |
+| Zegar rytmiczny | cykl na okręgu (krok 1 u góry, zgodnie z ruchem wskazówek), uderzenia połączone w wielokąt, czerwona wskazówka biegnie po cyklu. Duża kropka = mocne (dum / tom / akcent), mała pełna = wysokie (tek / bak / palma), pusta = lekkie (ka / ghost / sorda). We flamenco 12 jest u góry, jak na tarczy zegara. **Dotknij kropki**, aby zmienić uderzenie; „Przywróć” wraca do oryginału |
+| Siatka / Zegar | przełącza widok: zegar albo słupki w rzędzie |
 | Legenda | dotknięcie wycisza / włącza daną warstwę (np. sam dum) |
 | Duża liczba | tempo; przeciągnij palcem w górę / w dół, albo − / + (przytrzymaj = szybko) |
 | „typowo 60–120” | ustawia typowe tempo dla rytmu |

@@ -9,7 +9,7 @@
 
   /* ---------------------------------------------------------------- state */
   const STORE = 'metronom.v1';
-  const defaults = { cat: CATS[0].id, sel: {}, bpm: {}, pulse: false, edits: {}, mute: {} };
+  const defaults = { cat: CATS[0].id, sel: {}, bpm: {}, pulse: false, edits: {}, mute: {}, view: 'clock' };
   let S;
   try { S = Object.assign({}, defaults, JSON.parse(localStorage.getItem(STORE) || '{}')); }
   catch (e) { S = Object.assign({}, defaults); }
@@ -251,6 +251,8 @@
     cancelAnimationFrame(raf);
     queue = [];
     highlight(-1);
+    lastHit = null;
+    if (handEl) handEl.style.visibility = 'hidden';
     $('#led').className = 'beat-led';
     releaseWake();
     $('#play').textContent = 'Start';
@@ -276,6 +278,7 @@
   /* --------------------------------------------------------------- render */
   let cells = [];
   let lastOn = -1;
+  let handEl = null, clockOff = 0, lastHit = null;
 
   function highlight(i) {
     if (i === lastOn) return;
@@ -292,6 +295,7 @@
     let hit = null;
     while (queue.length && queue[0].t <= now) hit = queue.shift();
     if (hit) {
+      lastHit = hit;
       highlight(hit.i);
       if (hit.beat) {
         const led = $('#led');
@@ -299,6 +303,12 @@
         clearTimeout(ledTimer);
         ledTimer = setTimeout(() => { led.className = 'beat-led'; }, 90);
       }
+    }
+    if (handEl && lastHit) {
+      // smooth sweep between scheduled steps
+      const frac = lastHit.i + Math.max(0, Math.min(0.999, (now - lastHit.t) / stepDur()));
+      handEl.setAttribute('transform', `rotate(${(((frac + clockOff) / cur.len) * 360).toFixed(2)})`);
+      handEl.style.visibility = 'visible';
     }
     raf = requestAnimationFrame(draw);
   }
@@ -330,6 +340,85 @@
   }
 
   function renderGrid() {
+    const clock = S.view !== 'grid';
+    $('#view').textContent = clock ? 'Siatka' : 'Zegar';
+    const keep = lastOn;
+    if (clock) renderClock(); else renderBars();
+    $('#reset').hidden = !S.edits[rhythm().id];
+    if (playing && keep >= 0) highlight(keep);
+  }
+
+  // Rhythm clock: steps on a circle, strokes joined into a polygon, a sweeping hand.
+  function clockOffset(r) {
+    const n = r.pattern.length;
+    if (r.counts && n === 12) {
+      const k = r.counts.split(/\s+/).indexOf('12');
+      if (k >= 0) return (n - k) % n; // flamenco: count 12 sits at the top, like a clock face
+    }
+    return 0;
+  }
+
+  function renderClock() {
+    const r = rhythm();
+    const pat = pattern(r);
+    const n = pat.length;
+    const off = clockOffset(r);
+    const counts = r.counts ? r.counts.split(/\s+/) : null;
+    const gstarts = new Set();
+    { let i = 0; for (const g of groups(r)) { gstarts.add(i); i += g; } }
+    const R = 74, L = 88;
+    const ang = (i) => ((i + off) / n) * 2 * Math.PI - Math.PI / 2;
+    const pt = (i, rad) => [+(Math.cos(ang(i)) * rad).toFixed(2), +(Math.sin(ang(i)) * rad).toFixed(2)];
+    const RAD = { 3: 5.2, 2: 4, 1: 3.4, 0: 2.1 };
+
+    let svg = `<svg class="clock" viewBox="-100 -100 200 200" role="img" aria-label="Zegar rytmu: ${n} kroków">`;
+    svg += `<line class="axis" x1="0" y1="${-R}" x2="0" y2="${R}"/><line class="axis" x1="${-R}" y1="0" x2="${R}" y2="0"/>`;
+    svg += `<circle class="ring" r="${R}"/>`;
+    const on = [];
+    for (let i = 0; i < n; i++) if (STRENGTH[pat[i]]) on.push(pt(i, R).join(','));
+    if (on.length >= 2) svg += `<polygon class="poly" points="${on.join(' ')}"/>`;
+    svg += `<g id="hand" class="hand" style="visibility:hidden"><line x1="0" y1="0" x2="0" y2="${-R}"/><circle cx="0" cy="${-R}" r="1.8"/></g>`;
+    for (let i = 0; i < n; i++) {
+      const v = STRENGTH[pat[i]] || 0;
+      const [x, y] = pt(i, R);
+      const muted = v && S.mute[r.id + ':' + v] ? ' muted' : '';
+      svg += `<g class="dot${muted}" data-i="${i}" data-v="${v}" role="button" aria-label="Krok ${i + 1}: ${strokeName(pat[i])}">` +
+        `<circle class="hit" cx="${x}" cy="${y}" r="9"/><circle class="vis" cx="${x}" cy="${y}" r="${RAD[v]}"/></g>`;
+    }
+    const fs = n > 16 ? 6 : 7;
+    for (let i = 0; i < n; i++) {
+      const [x, y] = pt(i, L);
+      const lbl = counts ? counts[i] : String(i + 1);
+      const strong = counts ? pat[i] === 'X' || r.pattern[i] === 'X' : gstarts.has(i);
+      svg += `<text class="num${strong ? ' beat' : ''}" x="${x}" y="${y}" font-size="${fs}">${lbl}</text>`;
+    }
+    svg += `<circle class="hub" r="1.6"/></svg>`;
+
+    const grid = $('#grid');
+    grid.classList.remove('dense');
+    grid.classList.add('is-clock');
+    grid.innerHTML = `<div class="clock-wrap">${svg}</div>`;
+    cells = [...grid.querySelectorAll('.dot')];
+    cells.forEach((c) => { c.onclick = () => editStep(+c.dataset.i); });
+    handEl = grid.querySelector('#hand');
+    clockOff = off;
+    fitClock();
+    lastOn = -1;
+  }
+
+  // The clock takes whatever height is left between the title and the tempo block.
+  function fitClock() {
+    const grid = $('#grid');
+    const svg = grid.querySelector('.clock');
+    if (!svg) return;
+    const size = Math.max(160, Math.min(grid.clientWidth, grid.clientHeight - 4, 460));
+    svg.style.width = svg.style.height = size + 'px';
+  }
+  if ('ResizeObserver' in window) new ResizeObserver(fitClock).observe($('#grid'));
+  else window.addEventListener('resize', fitClock);
+
+  function renderBars() {
+    handEl = null;
     const r = rhythm();
     const pat = pattern(r);
     const gs = groups(r);
@@ -337,6 +426,7 @@
     const counts = r.counts ? r.counts.split(/\s+/) : null;
     const grid = $('#grid');
     grid.innerHTML = '';
+    grid.classList.remove('is-clock');
     grid.classList.toggle('dense', pat.length > 12);
     cells = [];
     lastOn = -1;
@@ -381,7 +471,6 @@
       }
       grid.appendChild(rowEl);
     }
-    $('#reset').hidden = !S.edits[r.id];
   }
 
   function strokeName(ch) {
@@ -415,7 +504,6 @@
     const r = rhythm();
     const b = bpmOf(r);
     $('#bpm').textContent = b;
-    $('#bpmSmall').textContent = b;
     $('#slider').value = b;
     $('#unit').textContent = unitGlyph(r);
   }
@@ -472,9 +560,8 @@
     const np = pat.join('');
     if (np === r.pattern) delete S.edits[r.id]; else S.edits[r.id] = np;
     save();
-    const playingCell = lastOn;
     renderGrid();
-    if (playing) { cur.pat = pattern(r); highlight(playingCell); }
+    if (playing) cur.pat = pattern(r);
   }
 
   function openSheet() { renderSheet(); $('#sheet').hidden = false; $('#closeList').focus(); }
@@ -533,6 +620,7 @@
   $('#next').onclick = () => select(selIdx() + 1);
   $('#openList').onclick = openSheet;
   $('#openList2').onclick = openSheet;
+  $('#view').onclick = () => { S.view = S.view === 'grid' ? 'clock' : 'grid'; save(); renderGrid(); };
   $('#closeList').onclick = closeSheet;
   $('#reset').onclick = () => { delete S.edits[rhythm().id]; save(); renderGrid(); if (playing) cur.pat = pattern(rhythm()); };
   $('#rRange').onclick = () => { const r = rhythm(); setBpm((r.tempo[0] + r.tempo[1]) / 2); };

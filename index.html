@@ -45,18 +45,21 @@
     </div>
   </section>
 
-  <section class="grid" id="grid" aria-label="Wzór rytmu (dotknij, aby edytować)"></section>
+  <section class="grid" id="grid" aria-label="Wzór rytmu — dotknij punktu, aby zmienić uderzenie"></section>
 
   <section class="legend">
     <div class="legend-items" id="legend"></div>
-    <button class="link reset" id="reset" hidden>Przywróć wzór</button>
+    <div class="legend-links">
+      <button class="link reset" id="reset" hidden>Przywróć</button>
+      <button class="link" id="view">Siatka</button>
+    </div>
   </section>
 
   <p class="note" id="rNote"></p>
 
   <section class="tempo">
     <div class="tempo-head">
-      <span class="label">Tempo</span>
+      <span class="label">Tempo <span class="unit-g" id="unit">♩</span> / min</span>
       <button class="link" id="rRange" title="Ustaw typowe tempo">typowo —</button>
     </div>
     <div class="tempo-main">
@@ -64,7 +67,6 @@
       <output class="bpm" id="bpm" aria-live="off" title="Przeciągnij w górę/dół">120</output>
       <button class="step-btn" id="plus" aria-label="Szybciej">+</button>
     </div>
-    <div class="tempo-unit"><span id="unit">♩</span> = <span id="bpmSmall">120</span> BPM</div>
     <input type="range" id="slider" min="20" max="400" step="1" value="120" aria-label="Tempo">
   </section>
 
