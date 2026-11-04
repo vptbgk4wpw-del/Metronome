@@ -1,7 +1,7 @@
 # Metronom — rytmy świata
 
-Minimalistyczny metronom z zegarem rytmicznym (styl szwajcarski / International Typographic Style) z cyklami rytmicznymi z sześciu tradycji:
-**Latin · Flamenco · Turkish · Arabic · Persian · Ethiopian**.
+Minimalistyczny metronom z zegarem rytmicznym (styl szwajcarski / International Typographic Style) z cyklami rytmicznymi z siedmiu tradycji:
+**Latin · Flamenco · Greek · Turkish · Arabic · Persian · Ethiopian** (91 rytmów).
 
 Zwykła strona HTML + PWA. Nie ma zależności ani kroku budowania. Działa offline i da się ją dodać do ekranu głównego telefonu jak aplikację.
 
@@ -22,7 +22,7 @@ Lokalnie (komputer): `python3 -m http.server` w folderze repo, potem `http://loc
 
 | Element | Działanie |
 |---|---|
-| Kategorie (siatka 3×2) | wybór tradycji |
+| Kategorie | wybór tradycji |
 | Nazwa rytmu / „lista ↓” | lista wszystkich rytmów kategorii |
 | ← → | poprzedni / następny rytm |
 | Zegar rytmiczny | cykl na okręgu (krok 1 u góry, zgodnie z ruchem wskazówek), uderzenia połączone w wielokąt, czerwona wskazówka biegnie po cyklu. Duża kropka = mocne (dum / tom / akcent), mała pełna = wysokie (tek / bak / palma), pusta = lekkie (ka / ghost / sorda). We flamenco 12 jest u góry, jak na tarczy zegara. **Dotknij kropki**, aby zmienić uderzenie; „Przywróć” wraca do oryginału |

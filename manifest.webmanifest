@@ -1,7 +1,7 @@
 {
   "name": "Metronom — rytmy świata",
   "short_name": "Metronom",
-  "description": "Metronom z rytmami: latin, flamenco, turkish, arabic, persian, ethiopian.",
+  "description": "Metronom z rytmami: latin, flamenco, greek, turkish, arabic, persian, ethiopian.",
   "lang": "pl",
   "start_url": "./",
   "scope": "./",

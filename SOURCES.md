@@ -7,7 +7,21 @@ Rytmy, przy których źródła potwierdzają metrum i grupowanie, ale **nie dok�
 ## Konwencje
 
 - Uderzenia: `D` nisko (dum / düm / tom / bas), `T` wysoko (tak / tek / bak / clave), `K` lekko (ka / ke / ghost), flamenco `X` / `x` / `o` (palma fuerte / palma / sorda).
-- Tempo: metra proste w ♩, złożone (6/8, 12/8) w ♩., addytywne (5/8, 7/8, 9/8, 10/8, kereshmeh) w ♪, flamenco 12-miarowe w pulsach compás. Zakresy tempa są orientacyjne. We flamenco pochodzą z presetów metronomów flamencowych, w pozostałych tradycjach to typowa praktyka.
+- Tempo zawsze w odczuwalnej mierze: metra proste i nieparzyste (5/8 … 10/8) w ♩ (2 ósemki), złożone (6/8, 12/8) w ♩., clave w jednym takcie 4/4 (puls „na dwa”), flamenco 12-miarowe w pulsach compás. Zakresy tempa są orientacyjne. We flamenco pochodzą z presetów metronomów flamencowych, w pozostałych tradycjach to typowa praktyka.
+
+## Greek
+
+Źródła: Grecki rejestr niematerialnego dziedzictwa kulturowego (ayla.culture.gr, hasło Kalamatianos); Fred Bolder, *Greek Dance Rhythms for Drums*; K. Agiakatsikas, „The Greek Zeybek Rhythms and Dances” (2007); transkrypcje rebetiko C. Siciliano; Archiwum Kounadisa (vmrebetiko.gr); Vavritsas, Moisidis & Vavritsas, „The Pontic dance Tik” (2014); V. Lantzos o mandilatos; noty Fundacji Domny Samiou; programy kursów tańca greckiego.
+
+Rozbieżności:
+- **Zeibekiko:** współczesne 9/8 to prawie zawsze 2+2+2+3; spotyka się też 3+2+2+2 i stary, ciężki zapis 9/4 (wg Boldera „2 × tsifteteli + 1”, czyli 4+4+1), dodany jako osobny wpis. Aptaliko pominięto, bo źródła nie są zgodne.
+- **Kalamatianos:** 3+2+2 (wolno-szybko-szybko) wg rejestru dziedzictwa.
+- **Tsamikos:** najczęściej 3/4 (wolno-szybko), bywa 6/8 lub 6/4.
+- **Syrtos:** 4/4 (4+2+2) albo 2/4 — to ten sam rytm w innym zapisie.
+- **Karsilamas:** formy żywe 2+2+2+3, wolne 3+2+2+2.
+- **Tik:** wg badania z 2014 r. większość odmian to 5/8 (3+2), ósemka 300–384; 7/16 to inny taniec pontyjski (serra).
+- **Tempa:** poza tikiem to szacunki, a wzory uderzeń (poza karsilamas, zeibekiko 9/4, tsifteteli i syrtosem) są orientacyjne.
+- Pominięto pogonisios, antikristos, baïntouska i soustę, bo nie dało się potwierdzić ich metrum ani grupowania.
 
 ## Turkish (usul)
 

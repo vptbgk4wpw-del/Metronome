@@ -70,24 +70,25 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--red); outli
 /* ---------- categories: 3 × 2 grid ---------- */
 .cats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
+  column-gap: 8px;
   border-bottom: 1px solid var(--hair);
 }
 .cat {
   text-align: left;
   padding: 11px 0 10px;
-  font-size: 15px;
+  font-size: 14px;
+  white-space: nowrap;
   font-weight: 400;
   color: var(--mute);
-  border-bottom: 1px solid var(--hair);
   position: relative;
 }
-.cat:nth-last-child(-n+3) { border-bottom: 0; }
+.cat:nth-child(n+5) { border-top: 1px solid var(--hair); }
 .cat[aria-selected="true"] { color: var(--ink); font-weight: 700; }
 .cat[aria-selected="true"]::before {
   content: ""; position: absolute; left: 0; top: 0; width: 100%; height: 2px; background: var(--red);
 }
-.cat .n { font-size: 11px; font-variant-numeric: tabular-nums; margin-right: 6px; vertical-align: 1px; }
+.cat .n { font-size: 10px; font-variant-numeric: tabular-nums; margin-right: 4px; vertical-align: 1px; }
 
 /* ---------- title ---------- */
 .title-top {
@@ -350,14 +351,14 @@ input[type=range]::-moz-range-thumb { width: 18px; height: 18px; background: var
 @media (max-height: 620px) {
   .cats { display: flex; overflow-x: auto; scrollbar-width: none; gap: 18px; }
   .cats::-webkit-scrollbar { display: none; }
-  .cat { flex: 0 0 auto; border-bottom: 0; }
+  .cat { flex: 0 0 auto; border-top: 0 !important; }
   .note { display: none; }
   .title-top { padding-top: 6px; }
   .grid.is-clock { min-height: 160px; }
 }
 @media (max-width: 360px) {
   :root { --gutter: 12px; }
-  .cat { font-size: 13px; }
+  .cat { font-size: 12px; }
 }
 
 /* the sequencer lanes label themselves; the legend explains the clock */

@@ -344,7 +344,7 @@
     $('#rAlt').textContent = r.alt || '';
     $('#rMeter').textContent = r.meter;
     $('#rGroup').textContent = r.groupLabel || r.group || '';
-    $('#rNote').textContent = (r.note || '') + (r.conf === 'p' ? ' Wzór orientacyjny — źródła potwierdzają metrum, uderzenia warto dopasować.' : '');
+    $('#rNote').textContent = (r.note || '') + (r.conf === 'p' ? ' · Wzór orientacyjny.' : '');
     $('#rRange').textContent = `typowo ${r.tempo[0]}–${r.tempo[1]}`;
   }
 
