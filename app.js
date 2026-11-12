@@ -30,15 +30,39 @@
   const list = () => DATA[cat().id] || [];
   const selIdx = () => Math.max(0, Math.min(S.sel[cat().id] || 0, list().length - 1));
   const rhythm = () => list()[selIdx()];
-  const pattern = (r) => S.edits[r.id] || r.pattern;
   const unit = (r) => r.unit || 1;
+  const lanesOf = (c) => c.strokes.map((s) => s.c);
+
+  // Every rhythm becomes a set of independent tracks (one string per lane, 'x' = hit),
+  // so several voices can sound on the same step. Single-line patterns are split by stroke.
+  for (const c of CATS) {
+    for (const r of DATA[c.id] || []) {
+      if (!r.tracks) {
+        r.tracks = {};
+        for (const ch of lanesOf(c)) r.tracks[ch] = [...r.pattern].map((x) => (x === ch ? 'x' : '.')).join('');
+      }
+      r.len = Object.values(r.tracks)[0].length;
+      for (const ch of lanesOf(c)) if (!r.tracks[ch]) r.tracks[ch] = '.'.repeat(r.len);
+      r.cat = c;
+    }
+  }
+  // stored edits: object of tracks (old v1/v2 edits were single strings → convert)
+  for (const [id, e] of Object.entries(S.edits)) {
+    if (typeof e !== 'string') continue;
+    const c = CATS.find((x) => id.startsWith(x.id + '.'));
+    if (!c) { delete S.edits[id]; continue; }
+    S.edits[id] = {};
+    for (const ch of lanesOf(c)) S.edits[id][ch] = [...e].map((x) => (x === ch ? 'x' : '.')).join('');
+  }
+  const tracks = (r) => S.edits[r.id] || r.tracks;
+  const muted = (r, ch) => !!S.mute[r.id + ':' + ch];
   const bpmOf = (r) => S.bpm[r.id] || r.bpm || Math.round((r.tempo[0] + r.tempo[1]) / 2);
 
-  // stroke char -> strength 0..3 (drives both the bar height and the sound)
-  const STRENGTH = { D: 3, X: 3, T: 2, x: 2, K: 1, o: 1, '.': 0 };
+  // lane char -> strength for the traditional kits (3 = low/strong … 1 = light)
+  const STRENGTH = { D: 3, X: 3, T: 2, x: 2, K: 1, o: 1 };
 
   function groups(r) {
-    const n = r.pattern.length;
+    const n = r.len;
     const g = String(r.group || '').split('+').map(Number).filter((x) => x > 0);
     const sum = g.reduce((a, b) => a + b, 0);
     if (!sum) return [n];
@@ -52,7 +76,7 @@
     const s = new Set();
     if (cat().pulse === 'accent') {
       // flamenco: the click follows the compás accents, not the group starts
-      [...r.pattern].forEach((ch, i) => { if (ch === 'X') s.add(i); });
+      [...r.tracks.X].forEach((ch, i) => { if (ch === 'x') s.add(i); });
       if (s.size) return s;
     }
     let i = 0;
@@ -189,6 +213,29 @@
     },
   };
 
+  // Kits keyed by lane char (several lanes may sound at once)
+  const KITS_CH = {
+    // Brazilian batucada: surdo, tamborim / agogô, ganzá
+    brasil(t, c) {
+      if (c === 'D') { drum(t, 85, 50, 0.62, 1.0); noise(t, 'lowpass', 260, 0.7, 0.06, 0.25); }
+      else if (c === 'T') { drum(t, 1150, 950, 0.05, 0.5, 'triangle'); noise(t, 'bandpass', 4200, 1.2, 0.03, 0.45); }
+      else { noise(t, 'highpass', 6800, 0.7, 0.05, 0.22); }
+    },
+    // drum machine / breakbeat kit: kick, snare, ghost snare, closed hat, open hat
+    drums(t, c) {
+      if (c === 'D') { drum(t, 160, 46, 0.38, 1.0); tone(t, 3200, 0.006, 0.12); }
+      else if (c === 'T') { noise(t, 'bandpass', 1900, 0.8, 0.16, 0.85); drum(t, 230, 185, 0.11, 0.42, 'triangle'); }
+      else if (c === 'G') { noise(t, 'bandpass', 2000, 0.9, 0.06, 0.22); drum(t, 230, 190, 0.05, 0.1, 'triangle'); }
+      else if (c === 'K') { noise(t, 'highpass', 8200, 0.8, 0.035, 0.3); }
+      else if (c === 'O') { noise(t, 'highpass', 7600, 0.7, 0.26, 0.26); }
+    },
+  };
+
+  function playLane(kit, t, c) {
+    if (KITS_CH[kit]) KITS_CH[kit](t, c);
+    else if (KITS[kit]) KITS[kit](t, STRENGTH[c] || 1);
+  }
+
   function pulseClick(t, first) {
     tone(t, first ? 2200 : 1550, 0.03, first ? 0.42 : 0.3, 'square');
   }
@@ -196,27 +243,34 @@
   /* ------------------------------------------------------------ scheduler */
   const LOOKAHEAD = 0.12;
   let playing = false, step = 0, nextTime = 0, queue = [], raf = 0, worker = null, intervalId = 0, wakeLock = null;
-  let cur = { pat: '', starts: new Set(), len: 1 };
+  let cur = { starts: new Set(), len: 1 };
 
   function snapshot() {
     const r = rhythm();
     const starts = beatStarts(r);
-    cur = { r, pat: pattern(r), starts, first: Math.min(...starts), len: r.pattern.length, kit: KITS[cat().kit] };
+    cur = { r, tr: tracks(r), starts, first: Math.min(...starts), len: r.len, kit: cat().kit };
   }
 
-  function stepDur() { return 60 / bpmOf(cur.r) / unit(cur.r); }
+  // Swing (MPC-style): off-beat steps of each pair are delayed; the pair keeps its length.
+  function stepDur(i) {
+    const base = 60 / bpmOf(cur.r) / unit(cur.r);
+    const sw = cur.r.swing;
+    if (!sw || sw === 0.5 || i === undefined) return base;
+    return (i % 2 === 0 ? 2 * sw : 2 * (1 - sw)) * base;
+  }
 
   function tick() {
     if (!playing) return;
     while (nextTime < ctx.currentTime + LOOKAHEAD) {
       const i = step % cur.len;
-      const ch = cur.pat[i];
-      const v = STRENGTH[ch] || 0;
-      if (v && !S.mute[cur.r.id + ':' + v]) cur.kit(nextTime, v);
+      for (const [ch, line] of Object.entries(cur.tr)) {
+        if (line[i] === 'x' && !muted(cur.r, ch)) playLane(cur.kit, nextTime, ch);
+      }
       const isBeat = cur.starts.has(i);
       if (S.pulse && isBeat) pulseClick(nextTime, i === cur.first);
-      queue.push({ t: nextTime, i, beat: isBeat });
-      nextTime += stepDur();
+      const d = stepDur(i);
+      queue.push({ t: nextTime, i, beat: isBeat, d });
+      nextTime += d;
       step = (i + 1) % cur.len;
     }
   }
@@ -287,6 +341,7 @@
   let cells = [];
   let lastOn = -1;
   let handEl = null, clockOff = 0, lastHit = null;
+  let seqPages = null, seqPage = 0; // groovebox paging for long cycles: [{start, end, el}]
 
   function highlight(i) {
     if (i === lastOn) return;
@@ -294,6 +349,10 @@
     if (lastOn >= 0) each(lastOn, (el) => el.classList.remove('on'));
     if (i >= 0) each(i, (el) => el.classList.add('on'));
     lastOn = i;
+    if (seqPages && i >= 0) {
+      const pg = seqPages.findIndex((p) => i >= p.start && i < p.end);
+      if (pg >= 0 && pg !== seqPage) showPage(pg);
+    }
   }
 
   let ledTimer = 0;
@@ -315,7 +374,7 @@
     }
     if (handEl && lastHit) {
       // smooth sweep between scheduled steps
-      const frac = lastHit.i + Math.max(0, Math.min(0.999, (now - lastHit.t) / stepDur()));
+      const frac = lastHit.i + Math.max(0, Math.min(0.999, (now - lastHit.t) / lastHit.d));
       handEl.setAttribute('transform', `rotate(${(((frac + clockOff) / cur.len) * 360).toFixed(2)})`);
       handEl.style.visibility = 'visible';
     }
@@ -343,7 +402,8 @@
     $('#rName').textContent = r.name.replace(/-/g, '\u2011');
     $('#rAlt').textContent = r.alt || '';
     $('#rMeter').textContent = r.meter;
-    $('#rGroup').textContent = r.groupLabel || r.group || '';
+    const sw = r.swing && r.swing !== 0.5 ? ` · swing ${Math.round(r.swing * 100)}%` : '';
+    $('#rGroup').textContent = (r.groupLabel || r.group || '') + sw;
     $('#rNote').textContent = (r.note || '') + (r.conf === 'p' ? ' · Wzór orientacyjny.' : '');
     $('#rRange').textContent = `typowo ${r.tempo[0]}–${r.tempo[1]}`;
   }
@@ -358,48 +418,66 @@
     if (playing && keep >= 0) highlight(keep);
   }
 
-  // Rhythm clock: steps on a circle, strokes joined into a polygon, a sweeping hand.
+  // Rhythm clock: steps on a circle, each voice on its own ring with its own polygon,
+  // a sweeping hand. Rings are the voices used by the rhythm (outer = first lane).
   function clockOffset(r) {
-    const n = r.pattern.length;
-    if (r.counts && n === 12) {
+    if (r.counts && r.len === 12) {
       const k = r.counts.split(/\s+/).indexOf('12');
-      if (k >= 0) return (n - k) % n; // flamenco: count 12 sits at the top, like a clock face
+      if (k >= 0) return (12 - k) % 12; // flamenco: count 12 sits at the top, like a clock face
     }
     return 0;
   }
 
+  function clockLanes(r) {
+    const tr = tracks(r);
+    const used = lanesOf(cat()).filter((ch) => r.tracks[ch].includes('x') || tr[ch].includes('x'));
+    return used.length ? used : [lanesOf(cat())[0]];
+  }
+
   function renderClock() {
     const r = rhythm();
-    const pat = pattern(r);
-    const n = pat.length;
+    const tr = tracks(r);
+    const n = r.len;
     const off = clockOffset(r);
     const counts = r.counts ? r.counts.split(/\s+/) : null;
     const gstarts = new Set();
     { let i = 0; for (const g of groups(r)) { gstarts.add(i); i += g; } }
+    const lanes = clockLanes(r);
     const R = 74, L = 88;
+    const gap = lanes.length > 1 ? Math.min(18, 52 / (lanes.length - 1)) : 0;
     const ang = (i) => ((i + off) / n) * 2 * Math.PI - Math.PI / 2;
     const pt = (i, rad) => [+(Math.cos(ang(i)) * rad).toFixed(2), +(Math.sin(ang(i)) * rad).toFixed(2)];
-    const RAD = { 3: 5.2, 2: 4, 1: 3.4, 0: 2.1 };
 
-    let svg = `<svg class="clock" viewBox="-100 -100 200 200" role="img" aria-label="Zegar rytmu: ${n} kroków">`;
+    let svg = `<svg class="clock" viewBox="-100 -100 200 200" role="img" aria-label="Zegar rytmu: ${n} kroków, ${lanes.length} głosy">`;
     svg += `<line class="axis" x1="0" y1="${-R}" x2="0" y2="${R}"/><line class="axis" x1="${-R}" y1="0" x2="${R}" y2="0"/>`;
-    svg += `<circle class="ring" r="${R}"/>`;
-    const on = [];
-    for (let i = 0; i < n; i++) if (STRENGTH[pat[i]]) on.push(pt(i, R).join(','));
-    if (on.length >= 2) svg += `<polygon class="poly" points="${on.join(' ')}"/>`;
+    const dots = [];
+    lanes.forEach((ch, k) => {
+      const rad = R - k * gap;
+      const line = tr[ch];
+      const m = muted(r, ch) ? ' muted' : '';
+      svg += `<g class="lane lane${k}${m}"><circle class="ring" r="${rad}"/>`;
+      const on = [];
+      for (let i = 0; i < n; i++) if (line[i] === 'x') on.push(pt(i, rad).join(','));
+      if (on.length >= 2) svg += `<polygon class="poly" points="${on.join(' ')}"/>`;
+      svg += '</g>';
+      const big = Math.max(2.6, 5.2 - k * 0.7), small = Math.max(1.2, 2.1 - k * 0.2);
+      for (let i = 0; i < n; i++) {
+        const [x, y] = pt(i, rad);
+        const hit = line[i] === 'x';
+        dots.push(`<g class="dot lane${k}${m}${hit ? ' hit' : ''}" data-i="${i}" data-c="${ch}" role="button" aria-label="Krok ${i + 1}, ${laneName(ch)}: ${hit ? 'tak' : 'nie'}">` +
+          `<circle class="tap" cx="${x}" cy="${y}" r="${Math.min(9, gap / 2 || 9)}"/><circle class="vis" cx="${x}" cy="${y}" r="${hit ? big : small}"/></g>`);
+      }
+    });
     svg += `<g id="hand" class="hand" style="visibility:hidden"><line x1="0" y1="0" x2="0" y2="${-R}"/><circle cx="0" cy="${-R}" r="1.8"/></g>`;
-    for (let i = 0; i < n; i++) {
-      const v = STRENGTH[pat[i]] || 0;
-      const [x, y] = pt(i, R);
-      const muted = v && S.mute[r.id + ':' + v] ? ' muted' : '';
-      svg += `<g class="dot${muted}" data-i="${i}" data-v="${v}" role="button" aria-label="Krok ${i + 1}: ${strokeName(pat[i])}">` +
-        `<circle class="hit" cx="${x}" cy="${y}" r="9"/><circle class="vis" cx="${x}" cy="${y}" r="${RAD[v]}"/></g>`;
-    }
+    svg += dots.join('');
     const fs = n > 16 ? 6 : 7;
+    const sparse = n > 24 && !counts;
+    let beatNo = 0;
     for (let i = 0; i < n; i++) {
+      if (sparse && !gstarts.has(i)) continue;
       const [x, y] = pt(i, L);
-      const lbl = counts ? counts[i] : String(i + 1);
-      const strong = counts ? pat[i] === 'X' || r.pattern[i] === 'X' : gstarts.has(i);
+      const lbl = counts ? counts[i] : sparse ? String(++beatNo) : String(i + 1);
+      const strong = counts ? r.tracks.X && r.tracks.X[i] === 'x' : gstarts.has(i);
       svg += `<text class="num${strong ? ' beat' : ''}" x="${x}" y="${y}" font-size="${fs}">${lbl}</text>`;
     }
     svg += `<circle class="hub" r="1.6"/></svg>`;
@@ -407,9 +485,13 @@
     const grid = $('#grid');
     grid.classList.remove('is-seq', 'two');
     grid.classList.add('is-clock');
+    seqPages = null;
     grid.innerHTML = `<div class="clock-wrap">${svg}</div>`;
-    cells = [...grid.querySelectorAll('.dot')];
-    cells.forEach((c) => { c.onclick = () => editStep(+c.dataset.i); });
+    cells = Array.from({ length: n }, () => []);
+    grid.querySelectorAll('.dot').forEach((d) => {
+      cells[+d.dataset.i].push(d);
+      d.onclick = () => toggleStep(+d.dataset.i, d.dataset.c);
+    });
     handEl = grid.querySelector('#hand');
     clockOff = off;
     fitClock();
@@ -431,8 +513,8 @@
   function renderSeq() {
     handEl = null;
     const r = rhythm();
-    const pat = pattern(r);
-    const n = pat.length;
+    const tr = tracks(r);
+    const n = r.len;
     const gs = groups(r);
     const counts = r.counts ? r.counts.split(/\s+/) : null;
     const gstarts = new Set();
@@ -450,10 +532,19 @@
     if (cur.length) blocks.push(cur);
 
     const grid = $('#grid');
+    const paged = blocks.length > 2;
     grid.classList.remove('is-clock');
     grid.classList.add('is-seq');
-    grid.classList.toggle('two', blocks.length > 1);
+    grid.classList.toggle('two', blocks.length === 2);
     grid.innerHTML = '';
+    seqPages = paged ? [] : null;
+    if (paged) {
+      const nav = document.createElement('div');
+      nav.className = 'seq-pages';
+      nav.innerHTML = '<span>Takt</span>' + blocks.map((_, k) => `<button data-p="${k}" aria-pressed="false">${k + 1}</button>`).join('');
+      nav.querySelectorAll('button').forEach((bt) => { bt.onclick = () => showPage(+bt.dataset.p); });
+      grid.appendChild(nav);
+    }
     cells = Array.from({ length: n }, () => []);
     lastOn = -1;
 
@@ -468,13 +559,12 @@
         const head = document.createElement(row.kind === 'lane' ? 'button' : 'span');
         head.className = 'seq-head';
         if (row.kind === 'lane') {
-          const v = STRENGTH[row.lane.c];
-          const muted = !!S.mute[r.id + ':' + v];
+          const isMuted = muted(r, row.lane.c);
           head.textContent = row.lane.short || row.lane.label;
           head.title = 'Wycisz / włącz';
-          head.setAttribute('aria-pressed', String(!muted));
-          head.onclick = () => toggleMute(v);
-          if (muted) rowEl.classList.add('muted');
+          head.setAttribute('aria-pressed', String(!isMuted));
+          head.onclick = () => toggleMute(row.lane.c);
+          if (isMuted) rowEl.classList.add('muted');
         }
         rowEl.appendChild(head);
         let i = start;
@@ -486,18 +576,18 @@
             let el;
             if (row.kind === 'num') {
               el = document.createElement('span');
-              el.className = 'seq-num' + ((counts ? r.pattern[i] === 'X' : gstarts.has(i)) ? ' beat' : '');
+              el.className = 'seq-num' + ((counts ? r.tracks.X && r.tracks.X[i] === 'x' : gstarts.has(i)) ? ' beat' : '');
               el.textContent = counts ? counts[i] : String(i + 1);
             } else {
               el = document.createElement('button');
               el.className = 'pad';
-              const onLane = pat[i] === row.lane.c;
+              const onLane = tr[row.lane.c][i] === 'x';
               if (onLane) el.classList.add('hit');
               if (gstarts.has(i)) el.classList.add('first');
               el.dataset.i = i;
               el.setAttribute('aria-label', `Krok ${i + 1}, ${row.lane.label}: ${onLane ? 'tak' : 'nie'}`);
               const step = i, c = row.lane.c;
-              el.onclick = () => setStep(step, pattern(r)[step] === c ? '.' : c);
+              el.onclick = () => toggleStep(step, c);
             }
             grp.appendChild(el);
             cells[i].push(el);
@@ -507,18 +597,27 @@
         blockEl.appendChild(rowEl);
       }
       grid.appendChild(blockEl);
-      start += blk.reduce((a2, b2) => a2 + b2, 0);
+      const end = start + blk.reduce((a2, b2) => a2 + b2, 0);
+      if (paged) seqPages.push({ start, end, el: blockEl });
+      start = end;
     }
+    if (paged) showPage(Math.min(seqPage, seqPages.length - 1));
   }
 
-  function strokeName(ch) {
-    if (ch === '.') return 'pauza';
+  function showPage(k) {
+    if (!seqPages) return;
+    seqPage = k;
+    seqPages.forEach((p, j) => { p.el.hidden = j !== k; });
+    document.querySelectorAll('.seq-pages button').forEach((bt) => bt.setAttribute('aria-pressed', String(+bt.dataset.p === k)));
+  }
+
+  function laneName(ch) {
     const s = cat().strokes.find((x) => x.c === ch);
     return s ? s.label : ch;
   }
 
-  function toggleMute(v) {
-    const k = rhythm().id + ':' + v;
+  function toggleMute(ch) {
+    const k = rhythm().id + ':' + ch;
     if (S.mute[k]) delete S.mute[k]; else S.mute[k] = 1;
     save(); renderLegend(); renderGrid();
   }
@@ -527,15 +626,17 @@
     const r = rhythm();
     const el = $('#legend');
     el.innerHTML = '';
+    // legend follows the clock rings, outer → inner
+    const used = clockLanes(r);
     for (const s of cat().strokes) {
-      const v = STRENGTH[s.c];
+      const k = used.indexOf(s.c);
+      if (k < 0) continue;
       const b = document.createElement('button');
-      b.className = 'lg';
-      b.dataset.v = v;
-      b.setAttribute('aria-pressed', String(!S.mute[r.id + ':' + v]));
+      b.className = 'lg lane' + k;
+      b.setAttribute('aria-pressed', String(!muted(r, s.c)));
       b.title = 'Wycisz / włącz';
-      b.innerHTML = `<span class="sw"><i></i></span>${s.label}`;
-      b.onclick = () => toggleMute(v);
+      b.innerHTML = `<span class="sw"></span>${s.short || s.label}`;
+      b.onclick = () => toggleMute(s.c);
       el.appendChild(b);
     }
   }
@@ -577,6 +678,7 @@
   function select(i) {
     const n = list().length;
     S.sel[cat().id] = ((i % n) + n) % n;
+    seqPage = 0;
     save();
     renderTitle(); renderGrid(); renderLegend(); renderTempo();
     resync();
@@ -591,21 +693,18 @@
   let saveT = 0;
   function saveSoon() { clearTimeout(saveT); saveT = setTimeout(save, 300); }
 
-  function editStep(i) {
-    const order = cat().strokes.map((x) => x.c).concat('.');
-    const pos = order.indexOf(pattern(rhythm())[i]);
-    setStep(i, order[(pos + 1) % order.length]);
-  }
-
-  function setStep(i, ch) {
+  function toggleStep(i, ch) {
     const r = rhythm();
-    const pat = pattern(r).split('');
-    pat[i] = ch;
-    const np = pat.join('');
-    if (np === r.pattern) delete S.edits[r.id]; else S.edits[r.id] = np;
+    const tr = Object.assign({}, tracks(r));
+    const line = tr[ch].split('');
+    line[i] = line[i] === 'x' ? '.' : 'x';
+    tr[ch] = line.join('');
+    const same = Object.keys(r.tracks).every((c) => tr[c] === r.tracks[c]);
+    if (same) delete S.edits[r.id]; else S.edits[r.id] = tr;
     save();
     renderGrid();
-    if (playing) cur.pat = pattern(r);
+    renderLegend();
+    if (playing) cur.tr = tracks(r);
   }
 
   function openSheet() { renderSheet(); $('#sheet').hidden = false; $('#closeList').focus(); }
@@ -668,7 +767,7 @@
     b.onclick = () => { S.view = b.dataset.view; save(); renderGrid(); };
   });
   $('#closeList').onclick = closeSheet;
-  $('#reset').onclick = () => { delete S.edits[rhythm().id]; save(); renderGrid(); if (playing) cur.pat = pattern(rhythm()); };
+  $('#reset').onclick = () => { delete S.edits[rhythm().id]; save(); renderGrid(); renderLegend(); if (playing) cur.tr = tracks(rhythm()); };
   $('#rRange').onclick = () => { const r = rhythm(); setBpm((r.tempo[0] + r.tempo[1]) / 2); };
   $('#slider').oninput = (e) => setBpm(+e.target.value);
   holdRepeat($('#minus'), (d) => setBpm(bpmOf(rhythm()) - d));
