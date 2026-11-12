@@ -23,6 +23,28 @@ Rozbieżności:
 - **Tempa:** poza tikiem to szacunki, a wzory uderzeń (poza karsilamas, zeibekiko 9/4, tsifteteli i syrtosem) są orientacyjne.
 - Pominięto pogonisios, antikristos, baïntouska i soustę, bo nie dało się potwierdzić ich metrum ani grupowania.
 
+## Brazil
+
+Źródła (przez streszczenia): C. Sandroni, *Feitiço Decente* (paradygmat Estácio 2+2+3+2+2+2+3 i paradygmat tresillo), w omówieniach w pracach USP, UNICAMP, UDESC i ANPPOM; Fonseca & Weiner, *Brazilian Rhythms for Drumset* (stopa jako ostinato surdo); materiały o surdo (primeira na 2, segunda na 1); prace o forró i Luizie Gonzadze; prace o frevo, maxixe (ANPPOM 2024), ijexá (Per Musi), samba-reggae; Fundaj i Itaú Cultural o cirandzie.
+
+Uwagi:
+- Każdy tor łączy kilka instrumentów (Surdo = wszystkie surdos / zabumba / bumbo; Tamborim = tamborim, agogô, akcenty caixy, rimshot; Ganzá = ganzá, triângulo, hi-hat). Giną akcenty i uderzenia otwarte/tłumione.
+- Teleco-teco to rotacja paradygmatu Sandroniego; źródła różnią się, który takt gra się pierwszy.
+- Pewniejsze: samba, samba na perkusji, partido alto, bossa nova. Orientacyjne: pozostałe.
+- Pominięto maracatu (toque różni się między nação), sambę de roda, coco i xaxado.
+
+## Hip-hop
+
+Źródła (przez streszczenia): Ethan Hein (analizy Amen break, Funky Drummer, Think, Impeach); drum-patterns.com; Drums The Word; DnB Academy; A. Frane, „Swing Rhythm in Classic Drum Breaks From Hip-Hop's Breakbeat Canon”, *Music Perception* 34(3), 2017 (mediana swingu 1,2:1 ≈ 54,5%); Attack Magazine o swingu MPC (Roger Linn: 50% prosto, 66% triola); poradniki Native Instruments, MusicRadar, BandLab.
+
+Uwagi:
+- Breaki (Amen, Funky Drummer, Impeach, Think, Cold Sweat, Levee) to transkrypcje; wzory gatunkowe (boom bap, Dilla, G-funk, electro, trap, drill, jungle) to przykłady stylu, nie transkrypcje konkretnych utworów.
+- Amen: ride w torze Hat, crash w torze Open; dodatkowy werbel w 4. takcie zapisany jako ghost. Tempo źródeł 130–140 (Hein: 138).
+- When the Levee Breaks i Think: pewne są stopa i werbel; reszta orientacyjna.
+- Swing breaków wg mediany z badania Frane'a, nie mierzony osobno dla każdego utworu. Prawdziwego „Dilla feel” (niekwantyzowane przesunięcia) nie da się oddać na siatce.
+- Rolki hi-hatu w trapie i drillu (32-ki, triole) uproszczone do szesnastek.
+- Pominięto Apache, Synthetic Substitution i Skull Snaps, bo nie znaleziono transkrypcji uderzenie po uderzeniu.
+
 ## Turkish (usul)
 
 Źródła: TDV İslâm Ansiklopedisi (hasła: sofyan, nim sofyan, düyek, devr-i hindi, devr-i turan, yürük semai, fahte); strony usul wg konwencji Özkana: salihbora.com, neyzenim.com, karagoz.net, varlikergen.com; MEB (podręczniki TYMM); projekt OSMAN (Uni Würzburg, Usul Düyek).

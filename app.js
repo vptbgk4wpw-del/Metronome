@@ -536,6 +536,7 @@
     grid.classList.remove('is-clock');
     grid.classList.add('is-seq');
     grid.classList.toggle('two', blocks.length === 2);
+    grid.style.setProperty('--lanes', lanes.length);
     grid.innerHTML = '';
     seqPages = paged ? [] : null;
     if (paged) {

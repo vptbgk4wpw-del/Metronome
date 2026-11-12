@@ -136,9 +136,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--red); outli
   min-height: 150px;
   justify-content: center;
   gap: 14px;
-  --pad: clamp(26px, 6.2vh, 52px);
+  --lanes: 3;
+  --pad: clamp(20px, calc(24vh / var(--lanes)), 52px);
 }
-.grid.is-seq.two { --pad: clamp(18px, 3.4vh, 40px); gap: 10px; }
+.grid.is-seq.two { --pad: clamp(16px, calc(12vh / var(--lanes)), 40px); gap: 10px; }
 .seq-block { display: flex; flex-direction: column; gap: 3px; }
 .seq-block[hidden] { display: none; }
 .seq-pages { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--mute); }

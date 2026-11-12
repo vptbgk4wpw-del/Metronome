@@ -1,7 +1,9 @@
 # Metronom — rytmy świata
 
-Minimalistyczny metronom z zegarem rytmicznym (styl szwajcarski / International Typographic Style) z cyklami rytmicznymi z siedmiu tradycji:
-**Latin · Flamenco · Greek · Turkish · Arabic · Persian · Ethiopian** (91 rytmów).
+Minimalistyczny metronom z zegarem rytmicznym (styl szwajcarski / International Typographic Style) z cyklami rytmicznymi z dziewięciu kategorii:
+**Latin · Brazil · Flamenco · Greek · Turkish · Arabic · Persian · Ethiopian · Hip-hop** (114 rytmów).
+
+Rytmy są wielogłosowe: każdy głos (np. dum i tak, surdo i tamborim, kick, snare i hi-hat) ma własny tor i może grać jednocześnie z innymi.
 
 Zwykła strona HTML + PWA. Nie ma zależności ani kroku budowania. Działa offline i da się ją dodać do ekranu głównego telefonu jak aplikację.
 
@@ -43,8 +45,7 @@ Lokalnie (komputer): `python3 -m http.server` w folderze repo, potem `http://loc
 ## Pliki
 
 - `index.html`, `styles.css`, `app.js`: interfejs i silnik (Web Audio, harmonogram z wyprzedzeniem, syntetyzowane brzmienia: darbuka, kudüm, tombak, kebero, clave/conga, palmas)
-- `rhythms.js`: **wszystkie rytmy** jako dane. Wzór to ciąg znaków, jeden znak na krok:
-  `D` nisko/mocno, `T` wysoko, `K` lekko, `.` pauza; we flamenco `X` palma akcentowana, `x` palma, `o` sorda.
+- `rhythms.js`: **wszystkie rytmy** jako dane. Rytm to albo jeden ciąg znaków (`pattern`, jeden znak na krok: `D` nisko/mocno, `T` wysoko, `K` lekko, `.` pauza; we flamenco `X` / `x` / `o`), albo osobne tory (`tracks`, np. `{ D: 'x...x...', T: '..x...x.' }`), gdy kilka głosów gra jednocześnie. Hip-hop ma tory `D` kick, `T` snare, `G` ghost, `K` hi-hat, `O` open hat; `swing` = swing w stylu MPC.
 - `sw.js`, `manifest.webmanifest`, `icons/`: PWA (offline, ikona)
 
 ## Źródła i uwagi o rytmach
