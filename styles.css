@@ -123,6 +123,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--red); outli
   font-variant-numeric: tabular-nums;
 }
 .group { font-size: 14px; color: var(--mute); font-variant-numeric: tabular-nums; }
+.feel { align-self: flex-end; padding: 2px 0; white-space: nowrap; }
+.feel[aria-pressed="true"] { color: var(--ink); }
+.feel[aria-pressed="true"]::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: var(--red); vertical-align: 1px; }
 
 .link { font-size: 13px; color: var(--mute); padding: 4px 0; }
 .link:active { color: var(--ink); }
@@ -175,6 +178,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--red); outli
 }
 .pad.first { box-shadow: inset 2px 0 0 var(--hair); }
 .pad.hit { background: var(--ink); }
+.pad.hit[style*="--mt"] { transform: translateX(calc(var(--mt) * 60%)); }
 .seq-row.muted .pad.hit { opacity: 0.22; }
 .pad.on { background: color-mix(in srgb, var(--red) 18%, transparent); }
 .pad.hit.on { background: var(--red); }
@@ -194,6 +198,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--red); outli
   -webkit-user-select: none; user-select: none;
 }
 .clock .axis { stroke: var(--hair); stroke-width: 0.5; }
+.clock .gridmark { stroke: var(--mute); stroke-width: 0.5; pointer-events: none; }
 .clock .hand line { stroke: var(--red); stroke-width: 1.2; }
 .clock .hand circle { fill: var(--red); }
 .clock .hub { fill: var(--ink); }

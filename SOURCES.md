@@ -28,10 +28,20 @@ Rozbieżności:
 Źródła (przez streszczenia): C. Sandroni, *Feitiço Decente* (paradygmat Estácio 2+2+3+2+2+2+3 i paradygmat tresillo), w omówieniach w pracach USP, UNICAMP, UDESC i ANPPOM; Fonseca & Weiner, *Brazilian Rhythms for Drumset* (stopa jako ostinato surdo); materiały o surdo (primeira na 2, segunda na 1); prace o forró i Luizie Gonzadze; prace o frevo, maxixe (ANPPOM 2024), ijexá (Per Musi), samba-reggae; Fundaj i Itaú Cultural o cirandzie.
 
 Uwagi:
-- Każdy tor łączy kilka instrumentów (Surdo = wszystkie surdos / zabumba / bumbo; Tamborim = tamborim, agogô, akcenty caixy, rimshot; Ganzá = ganzá, triângulo, hi-hat). Giną akcenty i uderzenia otwarte/tłumione.
+- W sambie i pokrewnych każdy tor łączy kilka instrumentów (Surdo = surdos / bumbo; Tamborim = tamborim, agogô, akcenty caixy, rimshot; Ganzá = ganzá, pandeiro, hi-hat). Giną akcenty i uderzenia otwarte/tłumione.
+- Forró (baião, forró, xote, arrasta-pé, xaxado) ma własny zestaw: zabumba z maceta otwartą (o) i stłumioną (+), bacalhau, trójkąt stłumiony (+) i otwarty (o). Podstawa: (1) trójkąt gra ciąg szesnastek i akcentuje kontratempo dźwiękiem otwartym; akcent robi lewa ręka (*Como se toca o baião*, Scielo 2014; praca USP); (2) baião: pierwsze uderzenie maceta stłumione, drugie, tuż przed 2, otwarte (Massa Podcast, That Drum Blog); (3) „gdy druga nuta jest otwarta, myślę baião; gdy zamknięta i sucha — forró” (Música Popular em Revista, Unicamp 2020); (4) bacalhau na „i” każdej miary w najprostszej wersji (Massa). Xote kołysany, xaxado prostszy i w 3+3+2 (Massa, ep. 11). Xote, arrasta-pé i xaxado: wzory orientacyjne.
 - Teleco-teco to rotacja paradygmatu Sandroniego; źródła różnią się, który takt gra się pierwszy.
+- Funk carioca: trzy epoki bitu: Volt Mix (lata 90.), tamborzão (2000–2009), beatbox (od 2010) (Revista do IEB 2014; Wikipedia). Nie znaleziono transkrypcji uderzenie po uderzeniu: Volt Mix zapisano jak bit Miami bass (stopa w podwójnym tresillo, klask na 2 i 4), tamborzão zrekonstruowano z opisów (ciężki bęben jak surdo, 3+3+2, warstwy atabaque/tomów). Oba orientacyjne; źródła sprzeczne (Splice: stopa na 1 i 3; Beatkey: siatka triolowa).
 - Pewniejsze: samba, samba na perkusji, partido alto, bossa nova. Orientacyjne: pozostałe.
-- Pominięto maracatu (toque różni się między nação), sambę de roda, coco i xaxado.
+- Pominięto maracatu (toque różni się między nação), sambę de roda, coco i funk 150 / beatbox.
+
+### Feel (mikrotiming)
+
+Przełącznik „Feel” pod metrum włącza przesunięcia uderzeń względem siatki (swing i mikrotiming); wyłączony gra wszystko równo, jak automat. Na zegarze przesunięte kropki mają kreskę w miejscu, gdzie stałyby na siatce.
+- Samba (samba, samba na perkusji, partido alto): 3. i 4. szesnastka każdej miary grana przed siatką. Kierunek: Gouyon 2007, Naveda, Gouyon, Guedes & Leman 2009 i 2011. Wartości liczbowe (−6% i −16% szesnastki, ok. 7 i 20 ms przy 123) są przybliżeniem: pełne teksty z liczbami były niedostępne.
+- Baião i forró: 4. szesnastka ok. 8% szesnastki wcześniej (≈ 10 ms przy 115). Inspiracja: materiał André Hosoi „Microtiming do baião” („dziesięć milisekund dzieli baião od metronomu”); kierunek przesunięcia przyjęty jak w sambie, niezweryfikowany.
+- Xote: „i” (ósemka po mierze) opóźnione o ¼ szesnastki, czyli swing ok. 56%.
+- Dilla: stopy lekko przed siatką, werble i ghosty spóźnione, hi-hat ze swingiem. To przybliżenie, nie pomiar.
 
 ## Hip-hop
 
@@ -41,7 +51,7 @@ Uwagi:
 - Breaki (Amen, Funky Drummer, Impeach, Think, Cold Sweat, Levee) to transkrypcje; wzory gatunkowe (boom bap, Dilla, G-funk, electro, trap, drill, jungle) to przykłady stylu, nie transkrypcje konkretnych utworów.
 - Amen: ride w torze Hat, crash w torze Open; dodatkowy werbel w 4. takcie zapisany jako ghost. Tempo źródeł 130–140 (Hein: 138).
 - When the Levee Breaks i Think: pewne są stopa i werbel; reszta orientacyjna.
-- Swing breaków wg mediany z badania Frane'a, nie mierzony osobno dla każdego utworu. Prawdziwego „Dilla feel” (niekwantyzowane przesunięcia) nie da się oddać na siatce.
+- Swing breaków wg mediany z badania Frane'a, nie mierzony osobno dla każdego utworu. „Dilla feel” przybliżono mikrotimingiem (patrz Brazil → Feel).
 - Rolki hi-hatu w trapie i drillu (32-ki, triole) uproszczone do szesnastek.
 - Pominięto Apache, Synthetic Substitution i Skull Snaps, bo nie znaleziono transkrypcji uderzenie po uderzeniu.
 

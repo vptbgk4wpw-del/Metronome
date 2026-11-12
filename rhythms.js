@@ -11,11 +11,30 @@
    conf:  'p' = wzór orientacyjny (źródła potwierdzają metrum, nie dokładne uderzenia)
    Źródła i rozbieżności: SOURCES.md */
 
+// Zestawy instrumentów dla pojedynczych rytmów (rytm może mieć własne `kit` + `strokes`).
+// o = otwarte (dźwięczne), + = stłumione — jak w notacji perkusyjnej.
+const FORRO = [
+  { c: 'D', label: 'Zabumba — maceta otwarta', short: 'Zab. o' },
+  { c: 'M', label: 'Zabumba — maceta stłumiona', short: 'Zab. +' },
+  { c: 'B', label: 'Bacalhau (pałeczka, dolna skóra)', short: 'Bacalhau' },
+  { c: 'K', label: 'Trójkąt stłumiony', short: 'Trój. +' },
+  { c: 'O', label: 'Trójkąt otwarty', short: 'Trój. o' },
+];
+const FUNK = [
+  { c: 'D', label: 'Bumbo 808 (kick)', short: 'Bumbo' },
+  { c: 'T', label: 'Klask / caixa', short: 'Klask' },
+  { c: 'H', label: 'Atabaque / tom (sample)', short: 'Atab.' },
+  { c: 'K', label: 'Hi-hat', short: 'Hat' },
+];
+// Mikrotiming samby: 3. i 4. szesnastka każdej miary grane przed siatką (Gouyon 2007, Naveda i in. 2009–2011).
+// Wartości w ułamkach szesnastki; przybliżone.
+const SAMBA_MICRO = [0, 0, -0.06, -0.16];
+
 window.CATEGORIES = [
   { id: 'latin', name: 'Latin', kit: 'latin',
     strokes: [{ c: 'D', label: 'Bas / tumba', short: 'Bas' }, { c: 'T', label: 'Clave / dzwon', short: 'Clave' }, { c: 'K', label: 'Ghost' }] },
   { id: 'brazil', name: 'Brazil', kit: 'brasil',
-    strokes: [{ c: 'D', label: 'Surdo / zabumba / bumbo', short: 'Surdo' }, { c: 'T', label: 'Tamborim / agogô / caixa / rim', short: 'Tamborim' }, { c: 'K', label: 'Ganzá / triângulo / hi-hat', short: 'Ganzá' }] },
+    strokes: [{ c: 'D', label: 'Surdo / bumbo', short: 'Surdo' }, { c: 'T', label: 'Tamborim / agogô / caixa / rim', short: 'Tamborim' }, { c: 'K', label: 'Ganzá / pandeiro / hi-hat', short: 'Ganzá' }] },
   { id: 'flamenco', name: 'Flamenco', kit: 'palmas', pulse: 'accent',
     strokes: [{ c: 'X', label: 'Acento' }, { c: 'x', label: 'Palma' }, { c: 'o', label: 'Sorda' }] },
   { id: 'greek', name: 'Greek', kit: 'darbuka',
@@ -79,26 +98,38 @@ window.RHYTHMS = {
   /* ------------------------------------------------------------ BRAZIL */
   brazil: [
     { id: 'samba', name: 'Samba', alt: 'Batucada · samba-enredo', meter: '2/4', group: '4+4+4+4', groupLabel: '2 takty', step: 16, unit: 4,
-      tracks: { D: 'x...x...x...x...', T: 'x.xx.x.x.xx.x.x.', K: 'xxxxxxxxxxxxxxxx' }, tempo: [100, 145],
-      note: 'Surdo de segunda na 1, primeira (mocna) na 2; tamborim teleco-teco; ganzá szesnastkami.' },
+      tracks: { D: 'x...x...x...x...', T: 'x.xx.x.x.xx.x.x.', K: 'xxxxxxxxxxxxxxxx' }, tempo: [100, 145], micro: SAMBA_MICRO,
+      note: 'Surdo de segunda na 1, primeira (mocna) na 2; tamborim teleco-teco; ganzá szesnastkami. Feel: 3. i 4. szesnastka lekko przed siatką.' },
     { id: 'samba_kit', name: 'Samba na perkusji', alt: 'Samba no prato · zestaw', meter: '2/4', group: '4+4+4+4', groupLabel: '2 takty', step: 16, unit: 4,
-      tracks: { D: 'x..xx..xx..xx..x', T: 'x.xx.x.x.xx.x.x.', K: 'xxxxxxxxxxxxxxxx' }, tempo: [80, 130],
+      tracks: { D: 'x..xx..xx..xx..x', T: 'x.xx.x.x.xx.x.x.', K: 'xxxxxxxxxxxxxxxx' }, tempo: [80, 130], micro: SAMBA_MICRO,
       note: 'Stopa naśladuje surdo (1, „a”→2), cross-stick gra teleco-teco, hi-hat szesnastki.' },
     { id: 'partido_alto', name: 'Partido alto', alt: 'Pagode', meter: '2/4', group: '4+4+4+4', groupLabel: '2 takty', step: 16, unit: 4,
-      tracks: { D: 'x..xx..xx..xx..x', T: '.x..x.x.x..x..x.', K: 'xxxxxxxxxxxxxxxx' }, tempo: [85, 115],
+      tracks: { D: 'x..xx..xx..xx..x', T: '.x..x.x.x..x..x.', K: 'xxxxxxxxxxxxxxxx' }, tempo: [85, 115], micro: SAMBA_MICRO,
       note: 'Dwutaktowa figura: takt na offbeatach, potem na mocnych; można zacząć od dowolnego.' },
     { id: 'bossa', name: 'Bossa nova', alt: 'Zestaw perkusyjny', meter: '2/4', group: '4+4+4+4', groupLabel: '2 takty', step: 16, unit: 4,
       tracks: { D: 'x..xx..xx..xx..x', T: 'x..x..x...x..x..', K: 'xxxxxxxxxxxxxxxx' }, tempo: [60, 85],
       note: 'Rimshot = clave bossy (1·4·7·11·14); stopa = ostinato surdo; hi-hat / miotełki równo.' },
-    { id: 'baiao', name: 'Baião', alt: 'Forró pé-de-serra', meter: '2/4', group: '4+4+4+4', groupLabel: '2 takty · 3+3+2', step: 16, unit: 4,
-      tracks: { D: 'x..x....x..x....', T: '....x.x.....x.x.', K: 'xxxxxxxxxxxxxxxx' }, tempo: [100, 130], conf: 'p',
-      note: 'Zabumba: ósemka z kropką + szesnastka; bacalhau na 2 i 2&; trójkąt szesnastkami.' },
-    { id: 'xote', name: 'Xote', alt: 'Xótis', meter: '2/4', group: '4+4+4+4', groupLabel: '2 takty', step: 16, unit: 4,
-      tracks: { D: 'x...x...x...x...', T: '..x.......x.....', K: 'x.x.x.x.x.x.x.x.' }, tempo: [70, 100], conf: 'p',
-      note: 'Wolny, kołyszący; zabumba na 1 i 2, bacalhau na „i” po 1.' },
-    { id: 'arrasta_pe', name: 'Arrasta-pé', alt: 'Forró', meter: '2/4', group: '4+4+4+4', groupLabel: '2 takty', step: 16, unit: 4,
-      tracks: { D: 'x...x...x...x...', T: '..x...x...x...x.', K: 'xxxxxxxxxxxxxxxx' }, tempo: [130, 170], conf: 'p',
-      note: 'Szybkie forró w stylu polki: zabumba na miary, bacalhau na offbeaty.' },
+    // forró: zabumba (maceta + bacalhau) i trójkąt; 2 takty 2/4
+    { id: 'baiao', name: 'Baião', alt: 'Luiz Gonzaga · forró pé-de-serra', meter: '2/4', group: '4+4+4+4', groupLabel: '2 takty · 3+3+2', step: 16, unit: 4,
+      kit: 'forro', strokes: FORRO, micro: [0, 0, 0, -0.08],
+      tracks: { D: '...x.......x....', M: 'x.......x.......', B: '..x...x...x...x.', K: 'xx.xxx.xxx.xxx.x', O: '..x...x...x...x.' }, tempo: [90, 130],
+      note: 'Maceta: stłumiona na 1, otwarta tuż przed 2 (3+3+2); bacalhau na „i”; trójkąt szesnastkami, otwarty na „i”. Feel ≈ 10 ms, przybliżony.' },
+    { id: 'forro', name: 'Forró', alt: 'Forró pé-de-serra · trio nordestino', meter: '2/4', group: '4+4+4+4', groupLabel: '2 takty', step: 16, unit: 4,
+      kit: 'forro', strokes: FORRO, micro: [0, 0, 0, -0.08],
+      tracks: { D: 'x.......x.......', M: '...x.......x....', B: '..x...x...x...x.', K: 'xx.xxx.xxx.xxx.x', O: '..x...x...x...x.' }, tempo: [110, 150],
+      note: 'Jak baião, ale druga nuta maceta stłumiona i sucha — to ona odróżnia forró od baião. Trójkąt: tsi-tsi-TIN-tsi.' },
+    { id: 'xote', name: 'Xote', alt: 'Xótis · forró', meter: '2/4', group: '4+4+4+4', groupLabel: '2 takty', step: 16, unit: 4,
+      kit: 'forro', strokes: FORRO, micro: [0, 0, 0.25, 0],
+      tracks: { D: 'x.......x.......', M: '....x.......x...', B: '..x...x...x...x.', K: 'x...x...x...x...', O: '..x...x...x...x.' }, tempo: [70, 100], conf: 'p',
+      note: 'Wolny i kołyszący: maceta na miary, bacalhau na „i”, trójkąt ósemkami; „i” opóźnione (balanço).' },
+    { id: 'arrasta_pe', name: 'Arrasta-pé', alt: 'Forró · polka nordestina', meter: '2/4', group: '4+4+4+4', groupLabel: '2 takty', step: 16, unit: 4,
+      kit: 'forro', strokes: FORRO,
+      tracks: { D: 'x.......x.......', M: '....x.......x...', B: '..x...x...x...x.', K: 'xx.xxx.xxx.xxx.x', O: '..x...x...x...x.' }, tempo: [140, 180], conf: 'p',
+      note: 'Szybkie forró w stylu polki: maceta na miary, bacalhau na offbeaty, trójkąt równo.' },
+    { id: 'xaxado', name: 'Xaxado', alt: 'Sertão · Lampião', meter: '2/4', group: '4+4+4+4', groupLabel: '2 takty · 3+3+2', step: 16, unit: 4,
+      kit: 'forro', strokes: FORRO,
+      tracks: { D: 'x.....x.x.....x.', M: '...x.......x....', B: '....x.......x...', K: 'xx.xxx.xxx.xxx.x', O: '..x...x...x...x.' }, tempo: [110, 140], conf: 'p',
+      note: 'Pokrewny xote, ale prosty, bez kołysania; zabumba akcentuje 3+3+2.' },
     { id: 'frevo', name: 'Frevo', alt: 'Frevo de rua · Recife', meter: '2/4', group: '4+4+4+4', groupLabel: '2 takty', step: 16, unit: 4,
       tracks: { D: '....x.......x...', T: 'x..x..x.x..x..x.', K: 'xxxxxxxxxxxxxxxx' }, tempo: [130, 160], conf: 'p',
       note: 'Bardzo szybkie; surdo na 2; caixa szesnastkami z synkopowanymi akcentami.' },
@@ -117,6 +148,15 @@ window.RHYTHMS = {
     { id: 'ciranda', name: 'Ciranda', alt: 'Pernambuco', meter: '4/4', group: '4+4+4+4', step: 16, unit: 4,
       tracks: { D: 'x.......x.......', T: '....x.......x...', K: 'x.x.x.x.x.x.x.x.' }, tempo: [70, 100], conf: 'p',
       note: 'Wolny taniec w kręgu; mocny bombo na 1 pod krok, ganzá ósemkami.' },
+    // funk carioca: trzy epoki bitów — Volt Mix (lata 90.), tamborzão (2000–2009), beatbox (od 2010)
+    { id: 'funk_volt', name: 'Funk carioca', alt: 'Volt Mix · baile funk lat 90.', meter: '4/4', group: '4+4+4+4', groupLabel: '3+3+2 · 3+3+2', step: 16, unit: 4,
+      kit: 'funk', strokes: FUNK,
+      tracks: { D: 'x..x..x.x..x..x.', T: '....x.......x...', K: 'x.x.x.x.x.x.x.x.' }, tempo: [125, 135], conf: 'p',
+      note: 'Bit z Miami bass (808 Volt Mix): stopa w podwójnym tresillo, klask na 2 i 4.' },
+    { id: 'tamborzao', name: 'Tamborzão', alt: 'Funk carioca 2000–2009', meter: '4/4', group: '4+4+4+4', groupLabel: '3+3+4+3+3', step: 16, unit: 4,
+      kit: 'funk', strokes: FUNK,
+      tracks: { D: 'x..x..x...x..x..', T: '....x.......x...', H: '..x..x..x..x...x' }, tempo: [125, 135], conf: 'p',
+      note: 'Ciężki bęben jak surdo w 3+3+2, atabaque wypełnia przerwy. Rekonstrukcja z opisów, nie transkrypcja.' },
   ],
 
   /* ---------------------------------------------------------- FLAMENCO */
@@ -393,7 +433,8 @@ window.RHYTHMS = {
       note: 'Wzór gatunkowy; swing MPC 54–58%, tu wartość przybliżona.' },
     { id: 'dilla', name: 'Lo-fi / Dilla', alt: 'Styl J Dilli · lo-fi hip-hop', meter: '4/4', group: '4+4+4+4+4+4+4+4', groupLabel: '2 takty', step: 16, unit: 4, swing: 0.6,
       tracks: { D: 'x......x..x.....x..x......x..x..', T: '....x.......x.......x.......x...', G: '...............................x', K: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' }, tempo: [80, 92], conf: 'p',
-      note: 'Tylko przybliżenie na siatce: prawdziwy Dilla jest niekwantyzowany (wczesne stopy, późne werble).' },
+      micro: { D: [-0.06], T: [0.14], G: [0.1] },
+      note: 'Niekwantyzowany feel przybliżony: stopy lekko przed siatką, werble spóźnione, hi-hat ze swingiem.' },
     { id: 'g_funk', name: 'G-funk', alt: 'West Coast, wczesne lata 90.', meter: '4/4', group: '4+4+4+4+4+4+4+4', groupLabel: '2 takty', step: 16, unit: 4, swing: 0.54,
       tracks: { D: 'x.......x.x.....x.....x.x..x....', T: '....x.......x.......x.......x...', K: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.x', O: '..............................x.' }, tempo: [90, 100], conf: 'p',
       note: 'Lekko swingowane szesnastki hi-hatu, otwarty hi-hat zamyka frazę.' },

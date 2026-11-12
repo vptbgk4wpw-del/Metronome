@@ -9,7 +9,7 @@
 
   /* ---------------------------------------------------------------- state */
   const STORE = 'metronom.v2';
-  const defaults = { cat: CATS[0].id, sel: {}, bpm: {}, pulse: false, edits: {}, mute: {}, view: 'clock' };
+  const defaults = { cat: CATS[0].id, sel: {}, bpm: {}, pulse: false, edits: {}, mute: {}, view: 'clock', feel: true };
   let S;
   try {
     let saved = JSON.parse(localStorage.getItem(STORE) || 'null');
@@ -32,18 +32,22 @@
   const rhythm = () => list()[selIdx()];
   const unit = (r) => r.unit || 1;
   const lanesOf = (c) => c.strokes.map((s) => s.c);
+  // a rhythm may bring its own instrument (e.g. forró: zabumba + triângulo inside Brazil)
+  const strokesOf = (r) => r.strokes || r.cat.strokes;
+  const kitOf = (r) => r.kit || r.cat.kit;
+  const lanesOfR = (r) => strokesOf(r).map((s) => s.c);
 
   // Every rhythm becomes a set of independent tracks (one string per lane, 'x' = hit),
   // so several voices can sound on the same step. Single-line patterns are split by stroke.
   for (const c of CATS) {
     for (const r of DATA[c.id] || []) {
+      r.cat = c;
       if (!r.tracks) {
         r.tracks = {};
-        for (const ch of lanesOf(c)) r.tracks[ch] = [...r.pattern].map((x) => (x === ch ? 'x' : '.')).join('');
+        for (const ch of lanesOfR(r)) r.tracks[ch] = [...r.pattern].map((x) => (x === ch ? 'x' : '.')).join('');
       }
       r.len = Object.values(r.tracks)[0].length;
-      for (const ch of lanesOf(c)) if (!r.tracks[ch]) r.tracks[ch] = '.'.repeat(r.len);
-      r.cat = c;
+      for (const ch of lanesOfR(r)) if (!r.tracks[ch]) r.tracks[ch] = '.'.repeat(r.len);
     }
   }
   // stored edits: object of tracks (old v1/v2 edits were single strings → convert)
@@ -54,9 +58,31 @@
     S.edits[id] = {};
     for (const ch of lanesOf(c)) S.edits[id][ch] = [...e].map((x) => (x === ch ? 'x' : '.')).join('');
   }
+  // drop stored edits that no longer fit the rhythm (lanes or length changed in an update)
+  for (const c of CATS) {
+    for (const r of DATA[c.id] || []) {
+      const e = S.edits[r.id];
+      if (!e) continue;
+      const ok = Object.keys(r.tracks).every((ch) => typeof e[ch] === 'string' && e[ch].length === r.len)
+        && Object.keys(e).every((ch) => ch in r.tracks);
+      if (!ok) delete S.edits[r.id];
+    }
+  }
   const tracks = (r) => S.edits[r.id] || r.tracks;
   const muted = (r, ch) => !!S.mute[r.id + ':' + ch];
   const bpmOf = (r) => S.bpm[r.id] || r.bpm || Math.round((r.tempo[0] + r.tempo[1]) / 2);
+
+  // Feel: where a step really sounds, in fractions of a step (swing + microtiming).
+  // micro = offsets per position, repeated (array for all lanes, or { lane: array, '*': array }).
+  const hasFeel = (r) => !!(r.micro || (r.swing && r.swing !== 0.5));
+  function shift(r, i, ch) {
+    if (!S.feel) return 0;
+    let o = 0;
+    if (r.swing && r.swing !== 0.5 && i % 2 === 1) o += 2 * r.swing - 1;
+    const m = r.micro && (Array.isArray(r.micro) ? r.micro : r.micro[ch] || r.micro['*']);
+    if (m) o += m[i % m.length];
+    return o;
+  }
 
   // lane char -> strength for the traditional kits (3 = low/strong … 1 = light)
   const STRENGTH = { D: 3, X: 3, T: 2, x: 2, K: 1, o: 1 };
@@ -213,6 +239,31 @@
     },
   };
 
+  // triangle: inharmonic partials; a new stroke chokes a ringing open one (the hand closes it)
+  let triOpen = null;
+  function triangle(t, open) {
+    if (triOpen && triOpen.end > t) {
+      const g0 = triOpen.g.gain;
+      if (g0.cancelAndHoldAtTime) g0.cancelAndHoldAtTime(t); else g0.cancelScheduledValues(t);
+      g0.setTargetAtTime(0.0001, t, 0.01);
+    }
+    triOpen = null;
+    const dec = open ? 0.9 : 0.045;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(open ? 0.3 : 0.24, t + 0.001);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
+    g.connect(out);
+    for (const [f, a] of [[2650, 0.5], [4420, 0.36], [6180, 0.3], [7960, 0.2], [9870, 0.14]]) {
+      const o = ctx.createOscillator(), pg = ctx.createGain();
+      o.frequency.value = f; pg.gain.value = a;
+      o.connect(pg); pg.connect(g);
+      o.start(t); o.stop(t + dec + 0.05);
+    }
+    if (!open) noise(t, 'highpass', 7000, 0.7, 0.012, 0.18);
+    if (open) triOpen = { g, end: t + dec };
+  }
+
   // Kits keyed by lane char (several lanes may sound at once)
   const KITS_CH = {
     // Brazilian batucada: surdo, tamborim / agogô, ganzá
@@ -220,6 +271,25 @@
       if (c === 'D') { drum(t, 85, 50, 0.62, 1.0); noise(t, 'lowpass', 260, 0.7, 0.06, 0.25); }
       else if (c === 'T') { drum(t, 1150, 950, 0.05, 0.5, 'triangle'); noise(t, 'bandpass', 4200, 1.2, 0.03, 0.45); }
       else { noise(t, 'highpass', 6800, 0.7, 0.05, 0.22); }
+    },
+    // forró: zabumba (maceta open / muted, bacalhau on the bottom head) + triângulo (closed / open)
+    forro(t, c) {
+      if (c === 'D') { drum(t, 92, 52, 0.55, 1.0); noise(t, 'lowpass', 300, 0.7, 0.05, 0.3); }
+      else if (c === 'M') { drum(t, 112, 74, 0.11, 0.95); noise(t, 'lowpass', 900, 0.7, 0.025, 0.35); }
+      else if (c === 'B') { noise(t, 'bandpass', 3000, 1.5, 0.035, 0.6); drum(t, 520, 430, 0.04, 0.28, 'triangle'); }
+      else if (c === 'K') triangle(t, false);
+      else if (c === 'O') triangle(t, true);
+    },
+    // funk carioca: 808 kick, clap, atabaque / tom samples, hi-hat
+    funk(t, c) {
+      if (c === 'D') { drum(t, 140, 42, 0.7, 1.0); tone(t, 2600, 0.006, 0.1); }
+      else if (c === 'T') {
+        noise(t, 'bandpass', 1400, 1.3, 0.012, 0.6);
+        noise(t, 'bandpass', 1500, 1.3, 0.012, 0.6, 0.009);
+        noise(t, 'bandpass', 1350, 1.0, 0.12, 0.85, 0.018);
+      }
+      else if (c === 'H') { drum(t, 235, 175, 0.22, 0.75); noise(t, 'bandpass', 1500, 1.0, 0.02, 0.22); }
+      else if (c === 'K') { noise(t, 'highpass', 8000, 0.8, 0.03, 0.28); }
     },
     // drum machine / breakbeat kit: kick, snare, ghost snare, closed hat, open hat
     drums(t, c) {
@@ -242,34 +312,38 @@
 
   /* ------------------------------------------------------------ scheduler */
   const LOOKAHEAD = 0.12;
-  let playing = false, step = 0, nextTime = 0, queue = [], raf = 0, worker = null, intervalId = 0, wakeLock = null;
+  let playing = false, step = 0, nextTime = 0, queue = [], hq = [], raf = 0, worker = null, intervalId = 0, wakeLock = null;
   let cur = { starts: new Set(), len: 1 };
 
   function snapshot() {
     const r = rhythm();
     const starts = beatStarts(r);
-    cur = { r, tr: tracks(r), starts, first: Math.min(...starts), len: r.len, kit: cat().kit };
+    cur = { r, tr: tracks(r), starts, first: Math.min(...starts), len: r.len, kit: kitOf(r) };
   }
 
-  // Swing (MPC-style): off-beat steps of each pair are delayed; the pair keeps its length.
-  function stepDur(i) {
-    const base = 60 / bpmOf(cur.r) / unit(cur.r);
-    const sw = cur.r.swing;
-    if (!sw || sw === 0.5 || i === undefined) return base;
-    return (i % 2 === 0 ? 2 * sw : 2 * (1 - sw)) * base;
+  // Steps sit on an even grid; swing and microtiming move single strokes off it (see shift).
+  function stepDur() {
+    return 60 / bpmOf(cur.r) / unit(cur.r);
   }
 
   function tick() {
     if (!playing) return;
     while (nextTime < ctx.currentTime + LOOKAHEAD) {
       const i = step % cur.len;
+      const d = stepDur();
+      let tv = 0, nv = 0;
       for (const [ch, line] of Object.entries(cur.tr)) {
-        if (line[i] === 'x' && !muted(cur.r, ch)) playLane(cur.kit, nextTime, ch);
+        if (line[i] !== 'x' || muted(cur.r, ch)) continue;
+        const o = shift(cur.r, i, ch) * d;
+        playLane(cur.kit, Math.max(ctx.currentTime, nextTime + o), ch);
+        tv += o; nv++;
       }
       const isBeat = cur.starts.has(i);
       if (S.pulse && isBeat) pulseClick(nextTime, i === cur.first);
-      const d = stepDur(i);
-      queue.push({ t: nextTime, i, beat: isBeat, d });
+      // t = grid time (hand, LED), tv = when the step's strokes actually sound (dot highlight)
+      const e = { t: nextTime, tv: nextTime + (nv ? tv / nv : 0), i, beat: isBeat, d };
+      queue.push(e);
+      hq.push(e);
       nextTime += d;
       step = (i + 1) % cur.len;
     }
@@ -297,7 +371,7 @@
     snapshot();
     playing = true;
     step = 0;
-    queue = [];
+    queue = []; hq = [];
     nextTime = ctx.currentTime + 0.06;
     tick();
     startTimer();
@@ -311,7 +385,7 @@
     playing = false;
     stopTimer();
     cancelAnimationFrame(raf);
-    queue = [];
+    queue = []; hq = [];
     highlight(-1);
     lastHit = null;
     if (handEl) handEl.style.visibility = 'hidden';
@@ -325,7 +399,7 @@
   function resync() {
     if (!playing) return;
     snapshot();
-    queue = [];
+    queue = []; hq = [];
     step = 0;
   }
 
@@ -362,9 +436,11 @@
     const now = ctx.currentTime - lat;
     let hit = null;
     while (queue.length && queue[0].t <= now) hit = queue.shift();
+    let lit = null;
+    while (hq.length && hq[0].tv <= now) lit = hq.shift();
+    if (lit) highlight(lit.i);
     if (hit) {
       lastHit = hit;
-      highlight(hit.i);
       if (hit.beat) {
         const led = $('#led');
         led.className = 'beat-led on' + (hit.i === cur.first ? '' : ' weak');
@@ -402,10 +478,21 @@
     $('#rName').textContent = r.name.replace(/-/g, '\u2011');
     $('#rAlt').textContent = r.alt || '';
     $('#rMeter').textContent = r.meter;
-    const sw = r.swing && r.swing !== 0.5 ? ` · swing ${Math.round(r.swing * 100)}%` : '';
-    $('#rGroup').textContent = (r.groupLabel || r.group || '') + sw;
+    $('#rGroup').textContent = r.groupLabel || r.group || '';
+    renderFeel();
     $('#rNote').textContent = (r.note || '') + (r.conf === 'p' ? ' · Wzór orientacyjny.' : '');
     $('#rRange').textContent = `typowo ${r.tempo[0]}–${r.tempo[1]}`;
+  }
+
+  function renderFeel() {
+    const r = rhythm();
+    const b = $('#feel');
+    b.hidden = !hasFeel(r);
+    if (b.hidden) return;
+    const what = r.micro ? 'mikrotiming' : `swing ${Math.round(r.swing * 100)}%`;
+    b.textContent = S.feel ? `Feel: ${what}` : 'Feel: równo';
+    b.setAttribute('aria-pressed', String(S.feel));
+    b.title = S.feel ? 'Wyłącz feel — wszystkie uderzenia na siatce' : 'Włącz feel (swing / mikrotiming)';
   }
 
   function renderGrid() {
@@ -430,8 +517,8 @@
 
   function clockLanes(r) {
     const tr = tracks(r);
-    const used = lanesOf(cat()).filter((ch) => r.tracks[ch].includes('x') || tr[ch].includes('x'));
-    return used.length ? used : [lanesOf(cat())[0]];
+    const used = lanesOfR(r).filter((ch) => r.tracks[ch].includes('x') || tr[ch].includes('x'));
+    return used.length ? used : [lanesOfR(r)[0]];
   }
 
   function renderClock() {
@@ -447,6 +534,7 @@
     const gap = lanes.length > 1 ? Math.min(18, 52 / (lanes.length - 1)) : 0;
     const ang = (i) => ((i + off) / n) * 2 * Math.PI - Math.PI / 2;
     const pt = (i, rad) => [+(Math.cos(ang(i)) * rad).toFixed(2), +(Math.sin(ang(i)) * rad).toFixed(2)];
+    const ticks = [];
 
     let svg = `<svg class="clock" viewBox="-100 -100 200 200" role="img" aria-label="Zegar rytmu: ${n} kroków, ${lanes.length} głosy">`;
     svg += `<line class="axis" x1="0" y1="${-R}" x2="0" y2="${R}"/><line class="axis" x1="${-R}" y1="0" x2="${R}" y2="0"/>`;
@@ -457,17 +545,23 @@
       const m = muted(r, ch) ? ' muted' : '';
       svg += `<g class="lane lane${k}${m}"><circle class="ring" r="${rad}"/>`;
       const on = [];
-      for (let i = 0; i < n; i++) if (line[i] === 'x') on.push(pt(i, rad).join(','));
+      for (let i = 0; i < n; i++) if (line[i] === 'x') on.push(pt(i + shift(r, i, ch), rad).join(','));
       if (on.length >= 2) svg += `<polygon class="poly" points="${on.join(' ')}"/>`;
       svg += '</g>';
       const big = Math.max(2.6, 5.2 - k * 0.7), small = Math.max(1.2, 2.1 - k * 0.2);
       for (let i = 0; i < n; i++) {
-        const [x, y] = pt(i, rad);
         const hit = line[i] === 'x';
+        const sh = hit ? shift(r, i, ch) : 0;
+        const [x, y] = pt(i + sh, rad);
+        if (Math.abs(sh) > 0.01) { // grid mark where the stroke would sit on a metronome
+          const [x1, y1] = pt(i, rad - 3.2), [x2, y2] = pt(i, rad + 3.2);
+          ticks.push(`<line class="gridmark" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`);
+        }
         dots.push(`<g class="dot lane${k}${m}${hit ? ' hit' : ''}" data-i="${i}" data-c="${ch}" role="button" aria-label="Krok ${i + 1}, ${laneName(ch)}: ${hit ? 'tak' : 'nie'}">` +
           `<circle class="tap" cx="${x}" cy="${y}" r="${Math.min(9, gap / 2 || 9)}"/><circle class="vis" cx="${x}" cy="${y}" r="${hit ? big : small}"/></g>`);
       }
     });
+    svg += ticks.join('');
     svg += `<g id="hand" class="hand" style="visibility:hidden"><line x1="0" y1="0" x2="0" y2="${-R}"/><circle cx="0" cy="${-R}" r="1.8"/></g>`;
     svg += dots.join('');
     const fs = n > 16 ? 6 : 7;
@@ -519,7 +613,7 @@
     const counts = r.counts ? r.counts.split(/\s+/) : null;
     const gstarts = new Set();
     { let i = 0; for (const g of gs) { gstarts.add(i); i += g; } }
-    const lanes = cat().strokes;
+    const lanes = strokesOf(r);
 
     // blocks of <= 16 steps, split at group boundaries
     const maxRow = Math.ceil(n / Math.ceil(n / 16));
@@ -583,7 +677,11 @@
               el = document.createElement('button');
               el.className = 'pad';
               const onLane = tr[row.lane.c][i] === 'x';
-              if (onLane) el.classList.add('hit');
+              if (onLane) {
+                el.classList.add('hit');
+                const sh = shift(r, i, row.lane.c);
+                if (Math.abs(sh) > 0.01) el.style.setProperty('--mt', sh.toFixed(3));
+              }
               if (gstarts.has(i)) el.classList.add('first');
               el.dataset.i = i;
               el.setAttribute('aria-label', `Krok ${i + 1}, ${row.lane.label}: ${onLane ? 'tak' : 'nie'}`);
@@ -613,7 +711,7 @@
   }
 
   function laneName(ch) {
-    const s = cat().strokes.find((x) => x.c === ch);
+    const s = strokesOf(rhythm()).find((x) => x.c === ch);
     return s ? s.label : ch;
   }
 
@@ -629,7 +727,7 @@
     el.innerHTML = '';
     // legend follows the clock rings, outer → inner
     const used = clockLanes(r);
-    for (const s of cat().strokes) {
+    for (const s of strokesOf(r)) {
       const k = used.indexOf(s.c);
       if (k < 0) continue;
       const b = document.createElement('button');
@@ -767,6 +865,7 @@
   document.querySelectorAll('#views button').forEach((b) => {
     b.onclick = () => { S.view = b.dataset.view; save(); renderGrid(); };
   });
+  $('#feel').onclick = () => { S.feel = !S.feel; save(); renderFeel(); renderGrid(); };
   $('#closeList').onclick = closeSheet;
   $('#reset').onclick = () => { delete S.edits[rhythm().id]; save(); renderGrid(); renderLegend(); if (playing) cur.tr = tracks(rhythm()); };
   $('#rRange').onclick = () => { const r = rhythm(); setBpm((r.tempo[0] + r.tempo[1]) / 2); };
