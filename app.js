@@ -69,6 +69,9 @@
     }
   }
   const tracks = (r) => S.edits[r.id] || r.tracks;
+  // 'x' = hit, 'X' = accented hit (a lane that uses accents plays plain 'x' softer)
+  const isHit = (c) => c === 'x' || c === 'X';
+  const hasAcc = (line) => line.includes('X');
   const muted = (r, ch) => !!S.mute[r.id + ':' + ch];
   const bpmOf = (r) => S.bpm[r.id] || r.bpm || Math.round((r.tempo[0] + r.tempo[1]) / 2);
 
@@ -157,10 +160,11 @@
     return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
   }
 
+  let VEL = 1; // velocity of the stroke being scheduled
   function env(t, g, attack, decay) {
     const a = ctx.createGain();
     a.gain.setValueAtTime(0.0001, t);
-    a.gain.exponentialRampToValueAtTime(g, t + attack);
+    a.gain.exponentialRampToValueAtTime(g * VEL, t + attack);
     a.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay);
     a.connect(out);
     return a;
@@ -264,6 +268,11 @@
     if (open) triOpen = { g, end: t + dec };
   }
 
+  // scraper (güiro / güira): a run of short noise bursts; long stroke = more teeth
+  function scrape(t, teeth, ftype, freq, g) {
+    for (let k = 0; k < teeth; k++) noise(t, ftype, freq, 1.4, 0.012, g * (k === 0 ? 1 : 0.75), k * 0.014);
+  }
+
   // Kits keyed by lane char (several lanes may sound at once)
   const KITS_CH = {
     // Brazilian batucada: surdo, tamborim / agogô, ganzá
@@ -291,6 +300,30 @@
       else if (c === 'H') { drum(t, 235, 175, 0.22, 0.75); noise(t, 'bandpass', 1500, 1.0, 0.02, 0.22); }
       else if (c === 'K') { noise(t, 'highpass', 8000, 0.8, 0.03, 0.28); }
     },
+    // Afro-Latin percussion section; acc = accented / long stroke
+    perc(t, c, acc) {
+      switch (c) {
+        case 'C': tone(t, 2500, 0.05, 0.55); tone(t, 1700, 0.03, 0.18, 'triangle'); break; // clave
+        case 'B': // campana / cencerro: mouth (acc) lower and open, body higher and short
+          if (acc) { tone(t, 560, 0.22, 0.22, 'square'); tone(t, 845, 0.2, 0.16, 'square'); noise(t, 'bandpass', 2600, 2, 0.04, 0.2); }
+          else { tone(t, 640, 0.07, 0.16, 'square'); tone(t, 960, 0.06, 0.12, 'square'); }
+          break;
+        case 'P': tone(t, 1850, 0.03, 0.3, 'triangle'); noise(t, 'bandpass', 3600, 1.5, 0.025, 0.4); break; // cáscara / palitos
+        case 'H': drum(t, acc ? 400 : 470, acc ? 370 : 440, acc ? 0.14 : 0.07, 0.5); noise(t, 'bandpass', 3000, 1.2, 0.015, 0.2); break; // bongó
+        case 'S': noise(t, 'bandpass', 1900, 1.0, 0.05, 0.75); drum(t, 400, 350, 0.04, 0.3); break; // conga slap
+        case 'O': drum(t, 330, 305, 0.28, 0.72); break; // conga / quinto open tone
+        case 'L': drum(t, 225, 205, 0.34, 0.78); break; // tumba / salidor open tone
+        case 'D': drum(t, 98, 96, 0.38, 0.75, 'triangle'); drum(t, 196, 194, 0.12, 0.15); break; // bass (tumbao)
+        case 'T': // tambora / bombo: open hand on the head (acc) or stick on the rim
+          if (acc) { drum(t, 150, 105, 0.3, 0.9); noise(t, 'lowpass', 500, 0.7, 0.03, 0.25); }
+          else { tone(t, 1300, 0.03, 0.4, 'triangle'); noise(t, 'bandpass', 2400, 1.3, 0.02, 0.3); }
+          break;
+        case 'Y': drum(t, 260, 235, 0.16, 0.65); break; // llamador
+        case 'G': scrape(t, acc ? 7 : 2, 'bandpass', 3800, 0.3); break; // güiro / guacharaca
+        case 'R': scrape(t, acc ? 7 : 2, 'highpass', 6500, 0.28); break; // güira (metal)
+        case 'M': noise(t, 'highpass', 5200, 0.7, acc ? 0.06 : 0.035, acc ? 0.34 : 0.22); break; // maracas / shekeré
+      }
+    },
     // drum machine / breakbeat kit: kick, snare, ghost snare, closed hat, open hat
     drums(t, c) {
       if (c === 'D') { drum(t, 160, 46, 0.38, 1.0); tone(t, 3200, 0.006, 0.12); }
@@ -301,9 +334,11 @@
     },
   };
 
-  function playLane(kit, t, c) {
-    if (KITS_CH[kit]) KITS_CH[kit](t, c);
+  function playLane(kit, t, c, acc = true, soft = false) {
+    VEL = soft ? 0.5 : 1;
+    if (KITS_CH[kit]) KITS_CH[kit](t, c, acc);
     else if (KITS[kit]) KITS[kit](t, STRENGTH[c] || 1);
+    VEL = 1;
   }
 
   function pulseClick(t, first) {
@@ -333,9 +368,10 @@
       const d = stepDur();
       let tv = 0, nv = 0;
       for (const [ch, line] of Object.entries(cur.tr)) {
-        if (line[i] !== 'x' || muted(cur.r, ch)) continue;
+        if (!isHit(line[i]) || muted(cur.r, ch)) continue;
         const o = shift(cur.r, i, ch) * d;
-        playLane(cur.kit, Math.max(ctx.currentTime, nextTime + o), ch);
+        const accLane = hasAcc(line);
+        playLane(cur.kit, Math.max(ctx.currentTime, nextTime + o), ch, line[i] === 'X', accLane && line[i] === 'x');
         tv += o; nv++;
       }
       const isBeat = cur.starts.has(i);
@@ -517,7 +553,7 @@
 
   function clockLanes(r) {
     const tr = tracks(r);
-    const used = lanesOfR(r).filter((ch) => r.tracks[ch].includes('x') || tr[ch].includes('x'));
+    const used = lanesOfR(r).filter((ch) => /[xX]/.test(r.tracks[ch]) || /[xX]/.test(tr[ch]));
     return used.length ? used : [lanesOfR(r)[0]];
   }
 
@@ -545,12 +581,14 @@
       const m = muted(r, ch) ? ' muted' : '';
       svg += `<g class="lane lane${k}${m}"><circle class="ring" r="${rad}"/>`;
       const on = [];
-      for (let i = 0; i < n; i++) if (line[i] === 'x') on.push(pt(i + shift(r, i, ch), rad).join(','));
+      for (let i = 0; i < n; i++) if (isHit(line[i])) on.push(pt(i + shift(r, i, ch), rad).join(','));
       if (on.length >= 2) svg += `<polygon class="poly" points="${on.join(' ')}"/>`;
       svg += '</g>';
       const big = Math.max(2.6, 5.2 - k * 0.7), small = Math.max(1.2, 2.1 - k * 0.2);
+      const acc = hasAcc(line), mid = (big + small) / 2 + 0.3;
       for (let i = 0; i < n; i++) {
-        const hit = line[i] === 'x';
+        const hit = isHit(line[i]);
+        const size = !hit ? small : acc && line[i] === 'x' ? mid : big;
         const sh = hit ? shift(r, i, ch) : 0;
         const [x, y] = pt(i + sh, rad);
         if (Math.abs(sh) > 0.01) { // grid mark where the stroke would sit on a metronome
@@ -558,7 +596,7 @@
           ticks.push(`<line class="gridmark" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`);
         }
         dots.push(`<g class="dot lane${k}${m}${hit ? ' hit' : ''}" data-i="${i}" data-c="${ch}" role="button" aria-label="Krok ${i + 1}, ${laneName(ch)}: ${hit ? 'tak' : 'nie'}">` +
-          `<circle class="tap" cx="${x}" cy="${y}" r="${Math.min(9, gap / 2 || 9)}"/><circle class="vis" cx="${x}" cy="${y}" r="${hit ? big : small}"/></g>`);
+          `<circle class="tap" cx="${x}" cy="${y}" r="${Math.min(9, gap / 2 || 9)}"/><circle class="vis" cx="${x}" cy="${y}" r="${size}"/></g>`);
       }
     });
     svg += ticks.join('');
@@ -676,9 +714,10 @@
             } else {
               el = document.createElement('button');
               el.className = 'pad';
-              const onLane = tr[row.lane.c][i] === 'x';
+              const onLane = isHit(tr[row.lane.c][i]);
               if (onLane) {
                 el.classList.add('hit');
+                if (tr[row.lane.c][i] === 'x' && hasAcc(tr[row.lane.c])) el.classList.add('soft');
                 const sh = shift(r, i, row.lane.c);
                 if (Math.abs(sh) > 0.01) el.style.setProperty('--mt', sh.toFixed(3));
               }
@@ -796,7 +835,7 @@
     const r = rhythm();
     const tr = Object.assign({}, tracks(r));
     const line = tr[ch].split('');
-    line[i] = line[i] === 'x' ? '.' : 'x';
+    line[i] = isHit(line[i]) ? '.' : 'x';
     tr[ch] = line.join('');
     const same = Object.keys(r.tracks).every((c) => tr[c] === r.tracks[c]);
     if (same) delete S.edits[r.id]; else S.edits[r.id] = tr;

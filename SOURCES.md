@@ -100,9 +100,21 @@ Ważne:
 Rozbieżności:
 - **Kierunek clave (3-2 / 2-3)** jest konwencją, więc obie wersje son clave są osobno.
 - **Cáscara:** wersja zawierająca wszystkie uderzenia rumba clave; część nauczycieli wyrównuje ją do son clave.
-- **Guaguancó:** położenie tonów tumby/segundo różni się między stylami (Hawana / Matanzas). Podano jeden ton salidora.
-- **Samba, baião, cumbia, merengue:** uproszczone szkielety, oznaczone jako orientacyjne.
-- Pominięto bolero, landó i festejo, bo źródła nie dawały pewnych wzorów.
+- **Guaguancó:** położenie tonów tumby/segundo różni się między stylami (Hawana / Matanzas). Podano wersję hawańską w uproszczeniu; quinto (improwizacja) pominięte. Palitos = ten sam wzór co cáscara 3-2.
+- Pominięto landó i festejo, bo źródła nie dawały pewnych wzorów.
+
+### Pełne sekcje (salsa, son montuno, cha-cha-chá, bolero, guaguancó, bembé, cumbia, merengue, dembow)
+
+Każdy instrument ma własny tor; w torach z akcentami `X` = akcent / uderzenie długie, `x` = lżejsze (np. campana: usta / korpus, güiro: długie / krótkie pociągnięcie). Zapis: 16 ósemek = 2 takty kubańskiego zapisu, czyli jeden obieg clave; tempo w półnutach („na dwa”), w cha-cha-chá i bolero w ćwierćnutach.
+
+Podstawa (przez streszczenia i materiały dydaktyczne): Mauleón, *Salsa Guidebook* (tumbao congi: slap na 2, otwarte tony na 4 i 4&; martillo bongó z otwartym tonem na 4; bas tumbao antycypowany na 2& i 4; cáscara w zwrotce, campana w mambo); Malabe & Weiner, *Afro-Cuban Rhythms for Drumset*; Wikipedia (Tumbao, Bell pattern, Cumbia, Merengue, Dembow).
+
+Uwagi:
+- **Campana (bongo bell):** wariantów jest wiele; podano jeden typowy (usta na miarach, korpus na 2& i 4&). Ta sama figura w obu taktach, bez dopasowania do clave.
+- **Cha-cha-chá:** güiro „długie-długie-długie-cha-cha” i otwarte tony congi na 4 i 4& dają „cha-cha-chá”; clave w charandze bywa pomijana — można wyciszyć tor.
+- **Bolero, guaguancó, bembé, cumbia, merengue:** orientacyjne (tony bębnów niskich, wzór tambory, rola bębnów w bembé różnią się między źródłami i stylami).
+- **Dembow:** stopa na ćwierćnuty, werbel 3+3+2 w każdej połowie taktu — wzór powszechnie opisywany; tempo reggaetonu 88–100.
+- Suche wzory clave, tumbao, cáscara i komórki (habanera, tresillo, cinquillo) zostają jako ćwiczenia.
 
 ## Flamenco
 

@@ -1,7 +1,7 @@
 # Metronom — rytmy świata
 
 Minimalistyczny metronom z zegarem rytmicznym (styl szwajcarski / International Typographic Style) z cyklami rytmicznymi z dziewięciu kategorii:
-**Latin · Brazil · Flamenco · Greek · Turkish · Arabic · Persian · Ethiopian · Hip-hop** (118 rytmów).
+**Latin · Brazil · Flamenco · Greek · Turkish · Arabic · Persian · Ethiopian · Hip-hop** (122 rytmy).
 
 Rytmy są wielogłosowe: każdy głos (np. dum i tak, surdo i tamborim, kick, snare i hi-hat) ma własny tor i może grać jednocześnie z innymi.
 
@@ -45,8 +45,8 @@ Lokalnie (komputer): `python3 -m http.server` w folderze repo, potem `http://loc
 
 ## Pliki
 
-- `index.html`, `styles.css`, `app.js`: interfejs i silnik (Web Audio, harmonogram z wyprzedzeniem, syntetyzowane brzmienia: darbuka, kudüm, tombak, kebero, clave/conga, palmas, surdo/tamborim/ganzá, zabumba/bacalhau/trójkąt, automat perkusyjny)
-- `rhythms.js`: **wszystkie rytmy** jako dane. Rytm to albo jeden ciąg znaków (`pattern`, jeden znak na krok: `D` nisko/mocno, `T` wysoko, `K` lekko, `.` pauza; we flamenco `X` / `x` / `o`), albo osobne tory (`tracks`, np. `{ D: 'x...x...', T: '..x...x.' }`), gdy kilka głosów gra jednocześnie. Hip-hop ma tory `D` kick, `T` snare, `G` ghost, `K` hi-hat, `O` open hat; `swing` = swing w stylu MPC. Rytm może mieć własny zestaw (`kit` + `strokes`, np. forró: zabumba + trójkąt). `micro` = mikrotiming: przesunięcia w ułamkach kroku, powtarzane co miarę (np. samba `[0, 0, -0.06, -0.16]`), wspólne lub osobne dla torów.
+- `index.html`, `styles.css`, `app.js`: interfejs i silnik (Web Audio, harmonogram z wyprzedzeniem, syntetyzowane brzmienia: darbuka, kudüm, tombak, kebero, sekcja latynoska (clave, campana, cáscara, bongó, conga, tumba, bas, tambora, llamador, güiro, güira, maracas), palmas, surdo/tamborim/ganzá, zabumba/bacalhau/trójkąt, automat perkusyjny)
+- `rhythms.js`: **wszystkie rytmy** jako dane. Rytm to albo jeden ciąg znaków (`pattern`, jeden znak na krok: `D` nisko/mocno, `T` wysoko, `K` lekko, `.` pauza; we flamenco `X` / `x` / `o`), albo osobne tory (`tracks`, np. `{ D: 'x...x...', T: '..x...x.' }`), gdy kilka głosów gra jednocześnie. Hip-hop ma tory `D` kick, `T` snare, `G` ghost, `K` hi-hat, `O` open hat; `swing` = swing w stylu MPC. Rytm może mieć własny zestaw (`kit` + `strokes`, np. forró: zabumba + trójkąt). W torze `X` = uderzenie akcentowane / długie, `x` = lżejsze (np. campana: usta / korpus, güiro: długie / krótkie). `micro` = mikrotiming: przesunięcia w ułamkach kroku, powtarzane co miarę (np. samba `[0, 0, -0.06, -0.16]`), wspólne lub osobne dla torów.
 - `sw.js`, `manifest.webmanifest`, `icons/`: PWA (offline, ikona)
 
 ## Źródła i uwagi o rytmach

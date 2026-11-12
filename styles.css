@@ -178,6 +178,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--red); outli
 }
 .pad.first { box-shadow: inset 2px 0 0 var(--hair); }
 .pad.hit { background: var(--ink); }
+.pad.hit.soft { background: color-mix(in srgb, var(--ink) 45%, transparent); }
 .pad.hit[style*="--mt"] { transform: translateX(calc(var(--mt) * 60%)); }
 .seq-row.muted .pad.hit { opacity: 0.22; }
 .pad.on { background: color-mix(in srgb, var(--red) 18%, transparent); }
@@ -219,6 +220,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--red); outli
 .clock .lane2 .poly { stroke-width: 1; stroke-dasharray: 3 2; fill: none; }
 .clock .lane3 .poly { stroke-width: 1; stroke-dasharray: 0.8 1.6; fill: none; }
 .clock .lane4 .poly { stroke-width: 0.8; stroke-dasharray: 5 2 1 2; fill: none; }
+.clock .lane5 .poly { stroke-width: 0.7; stroke-dasharray: 6 3; fill: none; }
+.clock .lane6 .poly { stroke-width: 1.1; stroke-dasharray: 0.6 3.4; stroke-linecap: round; fill: none; }
 .clock .lane.muted { opacity: 0.25; }
 
 .clock .dot { cursor: pointer; }
@@ -241,6 +244,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--red); outli
 .lg.lane2 .sw { border-top: 1.5px dashed var(--ink); }
 .lg.lane3 .sw { border-top: 2px dotted var(--ink); }
 .lg.lane4 .sw { border-top: 1px dashed var(--ink); }
+.lg.lane5 .sw { width: 18px; height: 0; border: 0; background: linear-gradient(90deg, var(--ink) 60%, transparent 0) 0 0 / 9px 1px repeat-x; height: 1px; }
+.lg.lane6 .sw { border-top: 1px dotted var(--ink); width: 18px; }
 .lg[aria-pressed="false"] { color: var(--mute); text-decoration: line-through; }
 .lg[aria-pressed="false"] .sw { opacity: .25; }
 .legend-links { display: flex; gap: 14px; align-items: center; white-space: nowrap; }
