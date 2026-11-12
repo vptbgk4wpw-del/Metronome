@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Marble</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400&display=swap">
+</head>
+<body>
+<canvas id="stage" aria-label="Marble — projection"></canvas>
+
+<div id="hud" aria-hidden="true"><b>Marble</b><span id="hudPal"></span><span id="hudFps"></span><span id="hudRes"></span><span id="hudRec" hidden>REC 0:00</span></div>
+
+<aside id="rack" aria-label="Controls">
+  <div class="head">
+    <div><h1>Marble</h1><p>Marbling for live visuals · 0.1</p></div>
+    <nav>
+      <button class="opt" type="button" id="btnFs">Fullscreen<kbd>F</kbd></button>
+      <button class="opt" type="button" id="btnHide">Hide<kbd>H</kbd></button>
+    </nav>
+  </div>
+  <div class="scroll" id="panel"></div>
+</aside>
+
+<button class="opt" type="button" id="showUi" title="Show controls (H)">Controls</button>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="fatal" hidden><div><h2>Marble</h2><p></p></div></div>
+<input type="file" id="audioFile" accept="audio/*" hidden>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
