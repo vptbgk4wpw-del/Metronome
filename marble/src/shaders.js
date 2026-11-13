@@ -234,7 +234,7 @@ void main(){
   vec2 g1, g2;                           // curl of the noise from its analytic gradient: divergence-free drift
   psrdnoise(vUv * 3.0 / uScale, uTime * 0.11, g1);
   psrdnoise(vUv * 7.0 / uScale + 4.7, -uTime * 0.17, g2);
-  v += (vec2(g1.y, -g1.x) + 0.5 * vec2(g2.y, -g2.x)) * uDrift * uRes * uDt * 0.02;
+  v += (vec2(g1.y, -g1.x) + 0.5 * vec2(g2.y, -g2.x)) * uDrift * uRes * uDt * 0.007;
   o = vec4(clamp(v, -1000.0, 1000.0), 0.0, 1.0);
 }`,
 wDiv: HEAD + `
@@ -284,7 +284,7 @@ void main(){
   float inside = smoothstep(0.3, 0.7, cov);
   float k = mix(0.08, uK, inside), uvv = c.x * c.y * c.y;
   c += vec2(lap.x - uvv + uF * (1.0 - c.x), 0.5 * lap.y + uvv - (uF + k) * c.y);
-  if (inside > 0.9 && hash12(floor(vUv / uTexel) + uSeed) > 0.99985) c = vec2(0.4, 0.5);
+  if (inside > 0.9 && hash12(floor(vUv / uTexel / 5.0) + uSeed) > 0.9996) c = vec2(0.3, 0.6);   // a speck of gall now and then; it has to be a few texels wide to take
   o = vec4(clamp(c, 0.0, 1.0), 0.0, 1.0);
 }`,
 

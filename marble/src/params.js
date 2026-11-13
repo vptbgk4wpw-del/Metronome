@@ -7,7 +7,7 @@ export const DEFAULTS = {
   mixKM:1, exposure:1.0, autoExp:1, hot:0.45, dyeDensity:1.5, lens:0.5, caustic:0.45, sat:1.08,
   gran:0.45, streak:0.5, paper:0.4,
   // wet layer and ox gall, both off by default
-  wet:0, wetFlow:0.5, wetVisc:0.4, gall:0, gallKind:0.35,
+  wet:0, wetFlow:0.5, wetVisc:0.4, gall:0, gallKind:0.7,
   // post
   glow:0.6, glowThresh:0.75, halation:0.35, aberr:0.3, grain:0.45, grainSize:1.3, flicker:0.15,
   // sound

@@ -32,7 +32,7 @@ const SL = {
   wetFlow:{ l:'Current', min:0, max:2, s:0.01, f:f2 },
   wetVisc:{ l:'Thickness of the size', min:0, max:1, s:0.01, f:pct },
   gall:{ l:'Ox gall', min:0, max:1, s:0.01, f:pct },
-  gallKind:{ l:'Holes ↔ veins ↔ cells', min:0, max:1, s:0.01, f:pct },
+  gallKind:{ l:'Veins ↔ cells', min:0, max:1, s:0.01, f:pct },
   exposure:{ l:'Exposure', min:0.2, max:3, s:0.01, f:f2 },
   hot:{ l:'Lamp hot spot', min:0, max:1, s:0.01, f:pct },
   dyeDensity:{ l:'Pigment density', min:0.2, max:3, s:0.01, f:f2 },

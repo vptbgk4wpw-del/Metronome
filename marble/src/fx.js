@@ -40,8 +40,8 @@ export const WET = {
   },
 };
 
-/* gallKind runs from lacy holes through veins to separate cells */
-const RD_SETS = [[0.039, 0.058], [0.029, 0.057], [0.0367, 0.0649]];
+/* gallKind runs from veins (a maze of open lines) to separate cells (round holes) */
+const RD_SETS = [[0.029, 0.057], [0.0367, 0.0649]];
 export const GALL = {
   rd:null, res:0,
   ensure(){
@@ -49,12 +49,13 @@ export const GALL = {
     if (this.rd && this.res === r) return;
     if (this.rd) this.rd.del();
     this.res = r; this.rd = makeDouble(r, r, { wrap:gl.MIRRORED_REPEAT });
-    run(S.PR.gall, this.rd.read, { uInit:1 }); run(S.PR.gall, this.rd.write, { uInit:1 });
+    const d = MB.dummy.tex;                 // the samplers must not point at the texture being written
+    run(S.PR.gall, this.rd.read, { uInit:1, uRD:d, uBase:d }); run(S.PR.gall, this.rd.write, { uInit:1, uRD:d, uBase:d });
   },
   free(){ if (this.rd) { this.rd.del(); this.rd = null; } },
   step(n){
     this.ensure();
-    const k = P.gallKind * 2, i = Math.min(1, Math.floor(k)), t = k - i, a = RD_SETS[i], b = RD_SETS[i + 1];
+    const t = P.gallKind, a = RD_SETS[0], b = RD_SETS[1];
     for (let j = 0; j < n; j++) {
       run(S.PR.gall, this.rd.write, { uRD:this.rd.read.tex, uBase:MB.base.read.tex, uTexel:this.rd.texel, uF:mixf(a[0], b[0], t), uK:mixf(a[1], b[1], t), uSeed:Math.random() * 100, uInit:0 });
       this.rd.swap();
