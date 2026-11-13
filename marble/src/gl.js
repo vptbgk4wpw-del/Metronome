@@ -64,11 +64,19 @@ function makeTex(w, h, o){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap);
   gl.texImage2D(gl.TEXTURE_2D, 0, ifmt, w, h, 0, gl.RGBA, type, null);
+  if (o.mip) {
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    if (aniso) gl.texParameterf(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(8, gl.getParameter(aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
+    gl.generateMipmap(gl.TEXTURE_2D);
+  }
   return tex;
 }
+const aniso = gl ? gl.getExtension('EXT_texture_filter_anisotropic') : null;
+/* rebuild the mip levels of a texture made with o.mip after it has been rendered into */
+export function mips(tex){ gl.bindTexture(gl.TEXTURE_2D, tex); gl.generateMipmap(gl.TEXTURE_2D); }
 /* o.mrt adds a second colour attachment of the same format (tex2) */
 export function makeFBO(w, h, o = {}){
-  const tex = makeTex(w, h, o), tex2 = o.mrt ? makeTex(w, h, o) : null;
+  const tex = makeTex(w, h, o), tex2 = o.mrt ? makeTex(w, h, Object.assign({}, o, { mip:false })) : null;
   const fb = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
   if (tex2) { gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, tex2, 0); gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]); }

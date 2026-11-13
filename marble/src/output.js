@@ -91,7 +91,7 @@ export async function pullPrint(api, opt = {}){
     for (let oy = 0; oy < PH; oy += T) for (let ox = 0; ox < PW; ox += T) {
       const x0 = (ox - PAD) * SS, y0 = (oy - PAD) * SS;
       const win = [0.5 + (x0 - v.cx) / size, 0.5 + (y0 - v.cy) / size, 0.5 + (x0 + TP - v.cx) / size, 0.5 + (y0 + TP - v.cy) / size];
-      const aa = 0.75 / size;
+      const aa = 1 / size;
       run(S.PR.marbEval, evA, MB.evalU(useHist ? MB.key : MB.base.read, n, win, aa, true, 0));
       if (useHist) run(S.PR.marbEval, evB, MB.evalU(MB.base.read, n, win, aa, true, nh));
       run(S.PR.comp, sc, MB.compU({ dye:evA.tex, mc:(useHist ? evB : evA).tex2 }, win, v, [x0, y0], PW * SS / innerWidth, [reach / TP, reach / TP]));

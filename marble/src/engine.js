@@ -2,7 +2,7 @@
    Live ops (growing drops, combs easing in) change every frame; once the stack gets long, the finished prefix is
    baked into the texture in one resample. Baked ops are also kept in a history on top of a key frame, so a print
    can replay them analytically at any resolution. */
-import { gl, run, makeFBO, makeDouble, clearT } from './gl.js';
+import { gl, run, makeFBO, makeDouble, clearT, mips } from './gl.js';
 import { P, QUAL, PAL } from './params.js';
 import { S, rnd, clamp, ease, view, viewWin, randInView, dyeVec, rndDye, scarceDye, MARGIN } from './state.js';
 import { lutFor, LUT_N } from './color.js';
@@ -20,9 +20,9 @@ export const MB = {
   alloc(){
     if (this.base) this.base.del();
     if (this.key) { this.key.del(); this.key = null; }
-    const q = QUAL[P.quality], b = q.mb, o = { mrt:true, wrap:gl.MIRRORED_REPEAT };
+    const q = QUAL[P.quality], b = q.mb, o = { mrt:true, wrap:gl.MIRRORED_REPEAT, mip:true };
     this.base = makeDouble(b, b, o);
-    if (q.hist) this.key = makeFBO(b, b, { wrap:gl.MIRRORED_REPEAT });
+    if (q.hist) this.key = makeFBO(b, b, { wrap:gl.MIRRORED_REPEAT, mip:true });
     if (!this.dummy) this.dummy = makeFBO(1, 1);
     if (!this.opTex) {
       this.opTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, this.opTex);
@@ -33,8 +33,8 @@ export const MB = {
     this.reset();
   },
   reset(){
-    run(S.PR.initBase, this.base.read, {}); run(S.PR.initBase, this.base.write, {});
-    if (this.key) clearT(this.key);
+    run(S.PR.initBase, this.base.read, {}); run(S.PR.initBase, this.base.write, {}); mips(this.base.read.tex);
+    if (this.key) { clearT(this.key); mips(this.key.tex); }
     this.ops = []; this.hist = []; this.queue = []; this.hold = null; this.ring = null;
   },
   size(a, b){ return Math.min(0.2, rnd(a, b) * P.mSize * Math.pow(P.scale, 0.7)); },
@@ -133,9 +133,9 @@ export const MB = {
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, n * 2, 1, gl.RGBA, gl.FLOAT, this.buf, 0);
     return n;
   },
-  evalU(base, n, win, aa, breathe, n0 = 0){
+  evalU(base, n, win, px, breathe, n0 = 0){   // px: the size of one output pixel in paint coordinates
     const fx = this.fx;
-    return { uBase:base.tex, uMcBase:this.base.read.tex2, uOps:this.opTex, uN:{ i:n }, uN0:{ i:n0 }, uBaseTexel:this.base.texel, uWin:win, uAA:aa,
+    return { uBase:base.tex, uMcBase:this.base.read.tex2, uOps:this.opTex, uN:{ i:n }, uN0:{ i:n0 }, uBaseTexel:this.base.texel, uWin:win, uPx:px,
       uDisp:fx.wet && fx.disp ? fx.disp() : this.dummy.tex, uWet:fx.wet ? 1 : 0, uVN:{ i:breathe ? fx.ventN : 0 }, uVent:{ v4:fx.vents } };
   },
   bake(force, wet){
@@ -147,12 +147,12 @@ export const MB = {
     if (!wet && (k === 0 || (!force && k < 16))) return;
     this.upload(this.ops);
     run(S.PR.marbEval, this.base.write, this.evalU(this.base.read, k, [0, 0, 1, 1], this.base.texel[0], false));
-    this.base.swap(); this.bakes++;
+    this.base.swap(); mips(this.base.read.tex); this.bakes++;
     const baked = this.ops.splice(0, k);
     if (this.fx.wet) { this.wetT = 0; if (this.fx.onWetBake) this.fx.onWetBake(); }
     if (this.key) {
       for (const o of baked) this.hist.push(o);
-      if (this.fx.wet || this.hist.length > HIST_MAX - 60) { run(S.PR.copy, this.key, { uSrc:this.base.read.tex }); this.hist = []; }
+      if (this.fx.wet || this.hist.length > HIST_MAX - 60) { run(S.PR.copy, this.key, { uSrc:this.base.read.tex }); mips(this.key.tex); this.hist = []; }
     }
   },
   compU(ev, win, v, origin, px, tap){
@@ -168,7 +168,7 @@ export const MB = {
     const tw = cl(S.W * q), th = cl(S.H * q);
     if (!this.ev || tw !== this.ev.w || th !== this.ev.h) { if (this.ev) this.ev.del(); this.ev = makeFBO(tw, th, { mrt:true }); }
     const n = this.upload(this.ops);
-    const aa = Math.max((win[2] - win[0]) / tw, (win[3] - win[1]) / th) * 0.75;
+    const aa = Math.max((win[2] - win[0]) / tw, (win[3] - win[1]) / th);
     run(S.PR.marbEval, this.ev, this.evalU(this.base.read, n, win, aa, true));
     run(S.PR.comp, target, this.compU({ dye:this.ev.tex, mc:this.ev.tex2 }, win, v, [0, 0], S.W / innerWidth, this.ev.texel));
   },

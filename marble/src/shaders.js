@@ -70,18 +70,29 @@ export const SRC = {
 /* Mathematical marbling (Lu, Jaffer et al. 2012): every operation is an exact, area-preserving map,
    so each pixel walks the stack backwards to the drop or the baked texture it came from. Edges never blur. */
 marbEval: HEAD2 + MC + `
-uniform sampler2D uBase, uMcBase, uOps, uDisp; uniform int uN, uN0, uVN; uniform vec2 uBaseTexel; uniform vec4 uWin; uniform float uAA, uWet;
+uniform sampler2D uBase, uMcBase, uOps, uDisp; uniform int uN, uN0, uVN; uniform vec2 uBaseTexel; uniform vec4 uWin; uniform float uPx, uWet;
 uniform vec4 uVent[16];
-vec4 sampleBase(vec2 p){
+vec4 bicubic(vec2 p){
   vec2 sp = p / uBaseTexel, tp = floor(sp - 0.5) + 0.5, f = sp - tp;
   vec2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f)), w1 = 1.0 + f * f * (-2.5 + 1.5 * f), w2 = f * (0.5 + f * (2.0 - 1.5 * f)), w3 = f * f * (-0.5 + 0.5 * f);
   vec2 w12 = w1 + w2, t0 = (tp - 1.0) * uBaseTexel, t3 = (tp + 2.0) * uBaseTexel, t12 = (tp + w2 / w12) * uBaseTexel;
-  vec4 r = (texture(uBase, vec2(t0.x, t0.y)) * w0.x + texture(uBase, vec2(t12.x, t0.y)) * w12.x + texture(uBase, vec2(t3.x, t0.y)) * w3.x) * w0.y
-         + (texture(uBase, vec2(t0.x, t12.y)) * w0.x + texture(uBase, vec2(t12.x, t12.y)) * w12.x + texture(uBase, vec2(t3.x, t12.y)) * w3.x) * w12.y
-         + (texture(uBase, vec2(t0.x, t3.y)) * w0.x + texture(uBase, vec2(t12.x, t3.y)) * w12.x + texture(uBase, vec2(t3.x, t3.y)) * w3.x) * w3.y;
-  vec4 a = texture(uBase, tp * uBaseTexel), b = texture(uBase, (tp + vec2(1.0, 0.0)) * uBaseTexel);
-  vec4 c = texture(uBase, (tp + vec2(0.0, 1.0)) * uBaseTexel), d = texture(uBase, (tp + 1.0) * uBaseTexel);
+  vec4 r = (textureLod(uBase, vec2(t0.x, t0.y), 0.0) * w0.x + textureLod(uBase, vec2(t12.x, t0.y), 0.0) * w12.x + textureLod(uBase, vec2(t3.x, t0.y), 0.0) * w3.x) * w0.y
+         + (textureLod(uBase, vec2(t0.x, t12.y), 0.0) * w0.x + textureLod(uBase, vec2(t12.x, t12.y), 0.0) * w12.x + textureLod(uBase, vec2(t3.x, t12.y), 0.0) * w3.x) * w12.y
+         + (textureLod(uBase, vec2(t0.x, t3.y), 0.0) * w0.x + textureLod(uBase, vec2(t12.x, t3.y), 0.0) * w12.x + textureLod(uBase, vec2(t3.x, t3.y), 0.0) * w3.x) * w3.y;
+  vec4 a = textureLod(uBase, tp * uBaseTexel, 0.0), b = textureLod(uBase, (tp + vec2(1.0, 0.0)) * uBaseTexel, 0.0);
+  vec4 c = textureLod(uBase, (tp + vec2(0.0, 1.0)) * uBaseTexel, 0.0), d = textureLod(uBase, (tp + 1.0) * uBaseTexel, 0.0);
   return clamp(r, min(min(a, b), min(c, d)), max(max(a, b), max(c, d)));
+}
+/* ja and jb say how far the paint coordinate moves per output pixel, to the right and upwards. Every op updates them
+   with its own derivative, so at any depth of the stack the pixel knows how much paint it covers. Where the paint has
+   been drawn out thinner than a pixel, edges fade by the share they cover and the baked texture is read through its
+   mip levels, instead of being point-sampled into dots and stairs. */
+vec2 lim(vec2 v){ float l = length(v); return l > 0.2 ? v * (0.2 / l) : v; }
+vec4 sampleBase(vec2 p, vec2 ja, vec2 jb){
+  float ft = max(length(ja), length(jb)) / uBaseTexel.x;
+  if (ft <= 1.3) return bicubic(p);
+  vec4 g = textureGrad(uBase, p, ja, jb);
+  return ft >= 2.2 ? g : mix(bicubic(p), g, (ft - 1.3) / 0.9);
 }
 void main(){
   vec2 p = uWin.xy + vUv * (uWin.zw - uWin.xy);
@@ -95,43 +106,55 @@ void main(){
     }
     if (se > 1e-30) { float f = -log(se) / 5.0; p -= dir / se * (amp / se) * f * exp(-f * f); }
   }
-  vec4 acc = vec4(0.0); float w = 1.0, gain = 1.0; vec2 mc = vec2(0.0); bool got = false;
+  vec4 acc = vec4(0.0); float w = 1.0, gain = 1.0; vec2 mc = vec2(0.0), ja = vec2(uPx, 0.0), jb = vec2(0.0, uPx); bool got = false;
   for (int i = uN - 1; i >= uN0; i--) {
     vec4 a = texelFetch(uOps, ivec2(2 * i, 0), 0), b = texelFetch(uOps, ivec2(2 * i + 1, 0), 0);
     int ty = int(a.x + 0.5);
     if (ty == 0) {                       // drop: P' = C + (P - C) * sqrt(1 + r^2 / |P - C|^2)
       float r = a.w; if (r <= 0.0) continue;
-      vec2 d = p - a.yz; float L2 = dot(d, d), L = sqrt(L2);
-      float cov = clamp((r - L) / uAA * 0.5 + 0.5, 0.0, 1.0);
+      vec2 d = p - a.yz; float L2 = max(dot(d, d), 1e-12), L = sqrt(L2); vec2 dh = d / L;
+      float fw = max(length(vec2(dot(dh, ja), dot(dh, jb))), 1e-9) * 1.4;
+      float cov = clamp((r - L) / fw + 0.5, 0.0, 1.0);
       if (cov > 0.0) {
         if (!got && cov >= 0.5) { got = true; mc = d + a.yz * 3.7 + 1.3; }
         acc += w * cov * b * gain; w *= 1.0 - cov; if (w < 0.004) break;
       }
-      p = a.yz + d * sqrt(max(0.0, 1.0 - r * r / max(L2, 1e-12)));
+      float s = sqrt(max(0.0, 1.0 - r * r / L2)), g = r * r / (L2 * L2 * max(s, 0.02));
+      ja = lim(s * ja + d * g * dot(d, ja)); jb = lim(s * jb + d * g * dot(d, jb));
+      p = a.yz + d * s;
     } else if (ty == 1) {                // tine comb: shift along M, decaying with distance to the nearest tine
-      vec2 N = a.yz, M = vec2(-N.y, N.x);
-      float sd = dot(p, N) - b.x, dd = abs(sd - b.y * floor(sd / b.y + 0.5));
-      p -= M * a.w * exp2(-dd / max(b.z, 1e-4));
+      vec2 N = a.yz, M = vec2(-N.y, N.x); float c = max(b.z, 1e-4);
+      float sd = dot(p, N) - b.x, k = sd - b.y * floor(sd / b.y + 0.5), e = a.w * exp2(-abs(k) / c), de = -0.6931 / c * e * sign(k);
+      ja = lim(ja - M * de * dot(N, ja)); jb = lim(jb - M * de * dot(N, jb));
+      p -= M * e;
     } else if (ty == 2) {                // vortex: rotation that fades with distance
       vec2 d = p - a.yz; float th = -a.w * exp(-dot(d, d) / (b.x * b.x)), c = cos(th), sv = sin(th);
-      p = a.yz + vec2(c * d.x - sv * d.y, sv * d.x + c * d.y);
+      vec2 rd = vec2(c * d.x - sv * d.y, sv * d.x + c * d.y), pr = vec2(-rd.y, rd.x), gth = th * (-2.0 / (b.x * b.x)) * d;
+      ja = lim(vec2(c * ja.x - sv * ja.y, sv * ja.x + c * ja.y) + pr * dot(gth, ja));
+      jb = lim(vec2(c * jb.x - sv * jb.y, sv * jb.x + c * jb.y) + pr * dot(gth, jb));
+      p = a.yz + rd;
     } else if (ty == 3) {                // sine wave shear
-      vec2 N = a.yz, M = vec2(-N.y, N.x);
-      p -= M * a.w * sin(b.x * dot(p, N) + b.y);
+      vec2 N = a.yz, M = vec2(-N.y, N.x); float ph = b.x * dot(p, N) + b.y, dc = a.w * b.x * cos(ph);
+      ja = lim(ja - M * dc * dot(N, ja)); jb = lim(jb - M * dc * dot(N, jb));
+      p -= M * a.w * sin(ph);
     } else if (ty == 4) {                // stylus stroke, inverted by fixed-point iteration
-      vec2 mv = b.xy, s0 = a.yz - mv; float r2 = a.w * a.w, mm = max(dot(mv, mv), 1e-12); vec2 q2 = p;
-      for (int k = 0; k < 3; k++) { vec2 pa = q2 - s0; vec2 dv = pa - mv * clamp(dot(pa, mv) / mm, 0.0, 1.0); q2 = p - mv * b.z * exp(-dot(dv, dv) / r2); }
+      vec2 mv = b.xy, s0 = a.yz - mv, dv = vec2(0.0); float r2 = a.w * a.w, mm = max(dot(mv, mv), 1e-12), e = 0.0; vec2 q2 = p;
+      for (int k = 0; k < 3; k++) { vec2 pa = q2 - s0; dv = pa - mv * clamp(dot(pa, mv) / mm, 0.0, 1.0); e = b.z * exp(-dot(dv, dv) / r2); q2 = p - mv * e; }
+      vec2 ge = e * (-2.0 / r2) * dv;
+      ja = lim(ja - mv * dot(ge, ja)); jb = lim(jb - mv * dot(ge, jb));
       p = q2;
     } else {                             // ripple: bands pressed together and pulled apart along N (Spanish wave).
       vec2 N = a.yz; float s0 = dot(p, N), q = s0;   // Pressed paint lies denser, stretched paint thinner: that is the shading.
       for (int k = 0; k < 4; k++) q = s0 - a.w * sin(b.x * q + b.y);
+      float dq = 1.0 / max(0.35, 1.0 + a.w * b.x * cos(b.x * q + b.y));
+      ja = lim(ja + N * (dq - 1.0) * dot(N, ja)); jb = lim(jb + N * (dq - 1.0) * dot(N, jb));
       p += N * (q - s0);
-      gain /= max(0.35, 1.0 + a.w * b.x * cos(b.x * q + b.y));
+      gain *= dq;
     }
   }
   if (uWet > 0.0) p += texture(uDisp, p).xy;
   if (!got) mc = decMc(texture(uMcBase, p));
-  if (w > 0.004) acc += w * sampleBase(p) * gain;
+  if (w > 0.004) acc += w * sampleBase(p, ja, jb) * gain;
   o = acc; oMc = encMc(mc);
 }`,
 initBase: HEAD2 + MC + `
