@@ -46,25 +46,34 @@ class Scheduler {
   }
 }
 function makeTimer(fn, ms) {
-  let worker = null, id = 0, url = null;
-  try {
-    url = URL.createObjectURL(new Blob([`let i=0;onmessage=e=>{clearInterval(i);if(e.data>0)i=setInterval(()=>postMessage(0),e.data)}`], { type: "text/javascript" }));
-    worker = new Worker(url);
-    worker.onmessage = fn;
-    worker.onerror = () => {
+  let worker = null, id = 0, url = null, heard = false, guard = 0;
+  const fallback = () => {
+    if (worker) {
       try {
         worker.terminate();
       } catch (e) {
       }
       worker = null;
-      if (!id) id = setInterval(fn, ms);
+    }
+    if (!id) id = setInterval(fn, ms);
+  };
+  try {
+    url = URL.createObjectURL(new Blob([`let i=0;onmessage=e=>{clearInterval(i);if(e.data>0)i=setInterval(()=>postMessage(0),e.data)}`], { type: "text/javascript" }));
+    worker = new Worker(url);
+    worker.onmessage = () => {
+      heard = true;
+      fn();
     };
+    worker.onerror = fallback;
     worker.postMessage(ms);
+    guard = setTimeout(() => {
+      if (!heard) fallback();
+    }, 400);
   } catch (e) {
-    worker = null;
-    id = setInterval(fn, ms);
+    fallback();
   }
   return () => {
+    clearTimeout(guard);
     if (worker) {
       try {
         worker.postMessage(0);
@@ -709,19 +718,26 @@ const pitchesOf = (tun, ev) => ev.notes.map((n) => tun.hz(n.deg, n.oct));
 const tapeSrc = "/* Audio-thread processors. Loaded as text and registered from a Blob, so the single-file build stays one file.\n\n   dub-tape: a tape delay. The read head moves smoothly when the time changes (pitch glides like tape\n   changing speed), wow and flutter wobble it, and the loop holds a high-pass, a low-pass, saturation and\n   a limiter. Freeze closes the input and holds the loop at unity gain; the limiter keeps it from running away.\n\n   dub-rec: hands the signal to the main thread in blocks, for live recording to WAV. */\n\nclass DubTape extends AudioWorkletProcessor {\n  static get parameterDescriptors() {\n    const k = (name, defaultValue, minValue, maxValue) => ({ name, defaultValue, minValue, maxValue, automationRate: 'k-rate' });\n    return [k('time', 0.38, 0.01, 3.9), k('feedback', 0.6, 0, 1.1), k('hp', 300, 10, 20000), k('lp', 1800, 10, 20000),\n      k('drive', 0.3, 0, 1), k('wow', 0.2, 0, 1), k('flutter', 0.1, 0, 1), k('ping', 1, 0, 1), k('freeze', 0, 0, 1)];\n  }\n  constructor() {\n    super();\n    let n = 1; while (n < sampleRate * 4 + 8) n <<= 1;\n    this.N = n; this.mask = n - 1;\n    this.bL = new Float32Array(n); this.bR = new Float32Array(n);\n    this.w = 0; this.cur = -1; this.p1 = 0; this.p2 = 0; this.frz = 0; this.pg = 1;\n    this.hpF = 0; this.lpF = 0; this.hc = [1, 0, 0, 0, 0]; this.lc = [1, 0, 0, 0, 0];\n    this.z = new Float64Array(8);     // biquad states: hpL, hpR, lpL, lpR (two each)\n  }\n  coef(type, f) {\n    const w0 = 2 * Math.PI * Math.min(f, sampleRate * 0.45) / sampleRate, c = Math.cos(w0), a = Math.sin(w0) / (2 * 0.9), a0 = 1 + a;\n    return type ? [(1 + c) / 2 / a0, -(1 + c) / a0, (1 + c) / 2 / a0, -2 * c / a0, (1 - a) / a0]\n                : [(1 - c) / 2 / a0, (1 - c) / a0, (1 - c) / 2 / a0, -2 * c / a0, (1 - a) / a0];\n  }\n  process(inputs, outputs, P) {\n    const inp = inputs[0], out = outputs[0], oL = out[0], oR = out[1] || out[0];\n    const iL = inp && inp[0], iR = inp && (inp[1] || inp[0]);\n    const time = P.time[0], fbP = P.feedback[0], drive = P.drive[0], ping = P.ping[0] > 0.5 ? 1 : 0, freeze = P.freeze[0] > 0.5 ? 1 : 0;\n    if (P.hp[0] !== this.hpF) { this.hpF = P.hp[0]; this.hc = this.coef(1, this.hpF); }\n    if (P.lp[0] !== this.lpF) { this.lpF = P.lp[0]; this.lc = this.coef(0, this.lpF); }\n    if (this.cur < 0) this.cur = time;\n    const sr = sampleRate, N = this.N, mask = this.mask, bL = this.bL, bR = this.bR, z = this.z, hc = this.hc, lc = this.lc;\n    const slew = 1 - Math.exp(-1 / (sr * 0.09)), fs = 1 - Math.exp(-1 / (sr * 0.03));\n    const wowA = P.wow[0] * 0.0035, fluA = P.flutter[0] * 0.00045, d1 = 2 * Math.PI * 0.43 / sr, d2 = 2 * Math.PI * 6.7 / sr;\n    const g = 1 + 3 * drive, T = 0.6;\n    let w = this.w, cur = this.cur, p1 = this.p1, p2 = this.p2, frz = this.frz, pg = this.pg;\n    for (let i = 0; i < oL.length; i++) {\n      cur += (time - cur) * slew; frz += (freeze - frz) * fs; pg += (ping - pg) * fs;\n      p1 += d1; if (p1 > 6.283185307) p1 -= 6.283185307;\n      p2 += d2; if (p2 > 6.283185307) p2 -= 6.283185307;\n      let d = (cur + wowA * Math.sin(p1) + fluA * Math.sin(p2)) * sr;\n      if (d < 2) d = 2; else if (d > N - 4) d = N - 4;\n      const pos = w - d, i0 = Math.floor(pos), f = pos - i0;\n      const a = (i0 - 1) & mask, b = i0 & mask, c = (i0 + 1) & mask, e = (i0 + 2) & mask;\n      // 4-point Hermite read\n      let yl = bL[b] + 0.5 * f * (bL[c] - bL[a] + f * (2 * bL[a] - 5 * bL[b] + 4 * bL[c] - bL[e] + f * (3 * (bL[b] - bL[c]) + bL[e] - bL[a])));\n      let yr = bR[b] + 0.5 * f * (bR[c] - bR[a] + f * (2 * bR[a] - 5 * bR[b] + 4 * bR[c] - bR[e] + f * (3 * (bR[b] - bR[c]) + bR[e] - bR[a])));\n      // loop filters (transposed direct form II)\n      let t = lc[0] * yl + z[4]; z[4] = lc[1] * yl - lc[3] * t + z[5]; z[5] = lc[2] * yl - lc[4] * t; let fl = t;\n      t = hc[0] * fl + z[0]; z[0] = hc[1] * fl - hc[3] * t + z[1]; z[1] = hc[2] * fl - hc[4] * t; fl = t;\n      t = lc[0] * yr + z[6]; z[6] = lc[1] * yr - lc[3] * t + z[7]; z[7] = lc[2] * yr - lc[4] * t; let fr = t;\n      t = hc[0] * fr + z[2]; z[2] = hc[1] * fr - hc[3] * t + z[3]; z[3] = hc[2] * fr - hc[4] * t; fr = t;\n      // frozen: the loop bypasses its filters and saturation, so it neither darkens nor decays\n      let sl = Math.tanh(g * fl) / g, sr2 = Math.tanh(g * fr) / g;\n      sl += (yl - sl) * frz; sr2 += (yr - sr2) * frz;\n      // limiter in the loop: unity below the threshold, bounded by 1 above it\n      let m = sl < 0 ? -sl : sl; if (m > T) sl = (sl < 0 ? -1 : 1) * (T + (1 - T) * Math.tanh((m - T) / (1 - T)));\n      m = sr2 < 0 ? -sr2 : sr2; if (m > T) sr2 = (sr2 < 0 ? -1 : 1) * (T + (1 - T) * Math.tanh((m - T) / (1 - T)));\n      const fb = fbP + (1 - fbP) * frz, inG = 1 - frz;\n      const xl = iL ? iL[i] : 0, xr = iR ? iR[i] : 0, mono = (xl + xr) * 0.7;\n      // ping-pong: the input enters on the left and the two lines feed each other\n      bL[w] = (xl + (mono - xl) * pg) * inG + fb * (sl + (sr2 - sl) * pg);\n      bR[w] = (xr - xr * pg) * inG + fb * (sr2 + (sl - sr2) * pg);\n      w = (w + 1) & mask;\n      oL[i] = fl + (yl - fl) * frz; oR[i] = fr + (yr - fr) * frz;\n    }\n    for (let k = 0; k < 8; k++) if (!(Math.abs(z[k]) > 1e-30)) z[k] = 0;      // denormals and NaN guard\n    this.w = w; this.cur = cur; this.p1 = p1; this.p2 = p2; this.frz = frz; this.pg = pg;\n    return true;\n  }\n}\nregisterProcessor('dub-tape', DubTape);\n\nclass DubRec extends AudioWorkletProcessor {\n  constructor() {\n    super(); this.on = false; this.n = 0; this.L = new Float32Array(8192); this.R = new Float32Array(8192);\n    this.port.onmessage = (e) => { if (e.data === 'start') { this.on = true; this.n = 0; } else if (e.data === 'stop') { this.flush(); this.on = false; this.port.postMessage('done'); } };\n  }\n  flush() { if (this.n) { this.port.postMessage({ l: this.L.slice(0, this.n), r: this.R.slice(0, this.n) }); this.n = 0; } }\n  process(inputs) {\n    const i = inputs[0];\n    if (this.on && i && i[0]) {\n      const l = i[0], r = i[1] || i[0];\n      for (let k = 0; k < l.length; k++) { this.L[this.n] = l[k]; this.R[this.n] = r[k]; if (++this.n === 8192) this.flush(); }\n    }\n    return true;\n  }\n}\nregisterProcessor('dub-rec', DubRec);\n";
 async function loadWorklets(ctx) {
   if (!ctx.audioWorklet || typeof AudioWorkletNode === "undefined") return false;
+  const add = (url) => Promise.race([ctx.audioWorklet.addModule(url).then(() => "ok"), new Promise((res) => setTimeout(() => res("late"), 1500))]);
+  let r = "refused";
   try {
     const url = URL.createObjectURL(new Blob([tapeSrc], { type: "text/javascript" }));
     try {
-      await ctx.audioWorklet.addModule(url);
-      return true;
+      r = await add(url);
     } finally {
-      URL.revokeObjectURL(url);
+      setTimeout(() => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (e) {
+        }
+      }, 5e3);
     }
   } catch (e) {
+    r = "refused";
   }
+  if (r !== "refused") return r === "ok";
   try {
-    await ctx.audioWorklet.addModule("data:text/javascript;charset=utf-8," + encodeURIComponent(tapeSrc));
-    return true;
+    return await add("data:text/javascript;charset=utf-8," + encodeURIComponent(tapeSrc)) === "ok";
   } catch (e) {
     return false;
   }
@@ -993,7 +1009,15 @@ function buildGraph(ctx, { tape = false, audit = null, dynamics = true } = {}) {
     s.start(t, k * 0.0731 % 1.6, dur + 0.05);
     return s;
   };
-  const M = G.master = makeMaster(ctx, dynamics), D = G.delay = makeDelay(ctx, tape), R = G.reverb = makeReverb(ctx);
+  let D;
+  try {
+    D = makeDelay(ctx, tape);
+  } catch (e) {
+    D = makeDelay(ctx, false);
+    G.tape = false;
+  }
+  const M = G.master = makeMaster(ctx, dynamics), R = G.reverb = makeReverb(ctx);
+  G.delay = D;
   G.out = M.out;
   D.out.connect(M.in);
   R.out.connect(M.in);
@@ -1330,6 +1354,25 @@ class DubEngine {
     this.stats = { steps: 0, late: 0, skipped: 0 };
   }
   /* ── set-up ── */
+  /* Call this synchronously inside a tap or key handler. Phones only let sound start from a gesture: the
+     context is made and resumed right here, before anything is awaited, and one silent sample is played. */
+  unlock() {
+    try {
+      const AC = globalThis.AudioContext || globalThis.webkitAudioContext;
+      if (!this.ctx) this.ctx = new AC({ latencyHint: "interactive" });
+      if (this.ctx.state !== "running" && this.ctx.resume) {
+        const p = this.ctx.resume();
+        if (p && p.catch) p.catch(() => {
+        });
+      }
+      const s = this.ctx.createBufferSource();
+      s.buffer = this.ctx.createBuffer(1, 1, this.ctx.sampleRate);
+      s.connect(this.ctx.destination);
+      s.start(0);
+    } catch (e) {
+    }
+    return this.ctx;
+  }
   async init(context2) {
     if (this.G) return this;
     if (this._init) return this._init;
@@ -1349,6 +1392,9 @@ class DubEngine {
       this.emit("ready", { tape: this.tape });
       return this;
     })();
+    this._init.catch(() => {
+      this._init = null;
+    });
     return this._init;
   }
   connect(node) {
@@ -1377,7 +1423,9 @@ class DubEngine {
     if (this.playing) return;
     if (this.ctx.state !== "running") {
       try {
-        await this.ctx.resume();
+        const p = this.ctx.resume();
+        if (p && p.catch) p.catch(() => {
+        });
       } catch (e) {
       }
     }

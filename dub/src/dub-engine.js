@@ -34,6 +34,17 @@ export class DubEngine {
   }
 
   /* ── set-up ── */
+  /* Call this synchronously inside a tap or key handler. Phones only let sound start from a gesture: the
+     context is made and resumed right here, before anything is awaited, and one silent sample is played. */
+  unlock() {
+    try {
+      const AC = globalThis.AudioContext || globalThis.webkitAudioContext;
+      if (!this.ctx) this.ctx = new AC({ latencyHint: 'interactive' });
+      if (this.ctx.state !== 'running' && this.ctx.resume) { const p = this.ctx.resume(); if (p && p.catch) p.catch(() => {}); }
+      const s = this.ctx.createBufferSource(); s.buffer = this.ctx.createBuffer(1, 1, this.ctx.sampleRate); s.connect(this.ctx.destination); s.start(0);
+    } catch (e) { /* no audio here; init() will report it */ }
+    return this.ctx;
+  }
   async init(context) {
     if (this.G) return this;
     if (this._init) return this._init;
@@ -51,6 +62,7 @@ export class DubEngine {
       this.emit('ready', { tape: this.tape });
       return this;
     })();
+    this._init.catch(() => { this._init = null; });       // a failed set-up can be tried again
     return this._init;
   }
   connect(node) { if (this.output) this.output.connect(node); else this._dest.push(node); return node; }
@@ -61,7 +73,8 @@ export class DubEngine {
   async start() {
     if (!this.G) await this.init();
     if (this.playing) return;
-    if (this.ctx.state !== 'running') { try { await this.ctx.resume(); } catch (e) {} }
+    // never wait on resume(): without a gesture some phones leave that promise pending for ever
+    if (this.ctx.state !== 'running') { try { const p = this.ctx.resume(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
     this.playing = true; this.bar = 0; this.step = -1; this._barCache = null; this._forcePad = -1;
     if (this._pendTun) { this.tun = tuningOf(this.S); this._pendTun = false; }
     this.G.apply(this.S, this.tun, this.ctx.currentTime);

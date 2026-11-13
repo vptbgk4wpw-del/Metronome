@@ -7,11 +7,16 @@ import { mulberry32, hash } from './prng.js';
    the desk then builds the delay from ordinary nodes. */
 export async function loadWorklets(ctx) {
   if (!ctx.audioWorklet || typeof AudioWorkletNode === 'undefined') return false;
+  // A blocked module can leave addModule pending for ever instead of failing, so the attempt gets a deadline;
+  // the second way in is tried only after a clear refusal, to keep the wait after the first tap short.
+  const add = (url) => Promise.race([ctx.audioWorklet.addModule(url).then(() => 'ok'), new Promise(res => setTimeout(() => res('late'), 1500))]);
+  let r = 'refused';
   try {
     const url = URL.createObjectURL(new Blob([tapeSrc], { type: 'text/javascript' }));
-    try { await ctx.audioWorklet.addModule(url); return true; } finally { URL.revokeObjectURL(url); }
-  } catch (e) { /* try the next way in */ }
-  try { await ctx.audioWorklet.addModule('data:text/javascript;charset=utf-8,' + encodeURIComponent(tapeSrc)); return true; } catch (e) { return false; }
+    try { r = await add(url); } finally { setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) {} }, 5000); }
+  } catch (e) { r = 'refused'; }
+  if (r !== 'refused') return r === 'ok';
+  try { return (await add('data:text/javascript;charset=utf-8,' + encodeURIComponent(tapeSrc))) === 'ok'; } catch (e) { return false; }
 }
 
 const curve = (fn, n = 2049) => { const c = new Float32Array(n); for (let i = 0; i < n; i++) c[i] = fn(i / (n - 1) * 2 - 1); return c; };

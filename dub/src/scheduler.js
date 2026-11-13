@@ -44,15 +44,18 @@ export class Scheduler {
 /* Timer that keeps ticking in a background tab where it can: a Worker is not throttled like the page.
    Falls back to setInterval where Workers from a Blob are not allowed. Returns a stop function. */
 export function makeTimer(fn, ms) {
-  let worker = null, id = 0, url = null;
+  let worker = null, id = 0, url = null, heard = false, guard = 0;
+  const fallback = () => { if (worker) { try { worker.terminate(); } catch (e) {} worker = null; } if (!id) id = setInterval(fn, ms); };
   try {
     url = URL.createObjectURL(new Blob([`let i=0;onmessage=e=>{clearInterval(i);if(e.data>0)i=setInterval(()=>postMessage(0),e.data)}`], { type: 'text/javascript' }));
     worker = new Worker(url);
-    worker.onmessage = fn;
-    worker.onerror = () => { try { worker.terminate(); } catch (e) {} worker = null; if (!id) id = setInterval(fn, ms); };
+    worker.onmessage = () => { heard = true; fn(); };
+    worker.onerror = fallback;
     worker.postMessage(ms);
-  } catch (e) { worker = null; id = setInterval(fn, ms); }
+    guard = setTimeout(() => { if (!heard) fallback(); }, 400);      // a Worker that was blocked without an error never ticks
+  } catch (e) { fallback(); }
   return () => {
+    clearTimeout(guard);
     if (worker) { try { worker.postMessage(0); worker.terminate(); } catch (e) {} }
     if (id) clearInterval(id);
     if (url) { try { URL.revokeObjectURL(url); } catch (e) {} }

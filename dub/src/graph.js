@@ -27,7 +27,10 @@ export function buildGraph(ctx, { tape = false, audit = null, dynamics = true } 
     while (i < d.length) { i += Math.floor(40 + Math.pow(r(), 3) * sr * 0.5); const a = (0.15 + 0.85 * Math.pow(r(), 4)) * (r() < 0.5 ? -1 : 1), n = 2 + Math.floor(r() * 10); for (let k = 0; k < n && i + k < d.length; k++) d[i + k] = a * (1 - k / n); } }
   const noiseSrc = (t, dur, k) => { const s = ctx.createBufferSource(); s.buffer = white; s.start(t, (k * 0.0731) % 1.6, dur + 0.05); return s; };
 
-  const M = G.master = makeMaster(ctx, dynamics), D = G.delay = makeDelay(ctx, tape), R = G.reverb = makeReverb(ctx);
+  let D;
+  try { D = makeDelay(ctx, tape); } catch (e) { D = makeDelay(ctx, false); G.tape = false; }      // a worklet that registered but will not construct
+  const M = G.master = makeMaster(ctx, dynamics), R = G.reverb = makeReverb(ctx);
+  G.delay = D;
   G.out = M.out;
   D.out.connect(M.in); R.out.connect(M.in);
   const dlyRev = gain(0.22); D.out.connect(dlyRev); dlyRev.connect(R.in);

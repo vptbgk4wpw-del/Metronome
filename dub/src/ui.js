@@ -89,14 +89,37 @@ const grp = (...kids) => h('div', { class: 'grp' }, kids);
 function dynamic(el, keyFn, build) { let key; bind(() => { const k = keyFn(); if (k === key) return; key = k; el.replaceChildren(...[build()].flat(Infinity).filter(Boolean)); }); return el; }
 
 /* ── transport ── */
-async function play() {
+/* iPhone: the ringer switch silences Web Audio unless the page counts as media playback. Newer systems have
+   a setting for that; older ones need an (inaudible) media element playing alongside. */
+let silentEl = null;
+function mediaSession() {
+  try { if (navigator.audioSession) { navigator.audioSession.type = 'playback'; return; } } catch (e) {}
+  if (silentEl || !/iPhone|iPad|iPod/.test(navigator.userAgent) && !(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) return;
   try {
-    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}   // iPhone: sound with the mute switch on
-    await engine.init(); meterSetup();
-    if (engine.playing) engine.stop(); else await engine.start();
-  } catch (e) { toast('Audio could not start. ' + (e && e.message ? e.message : '')); }
-  refresh();
+    const wav = encodeWav([new Float32Array(2205)], 22050, 16); let bin = ''; for (let i = 0; i < wav.length; i++) bin += String.fromCharCode(wav[i]);
+    silentEl = new Audio('data:audio/wav;base64,' + btoa(bin)); silentEl.loop = true; silentEl.setAttribute('playsinline', ''); silentEl.preload = 'auto';
+    const p = silentEl.play(); if (p && p.catch) p.catch(() => {});
+  } catch (e) {}
 }
+let warnT = 0;
+function play() {
+  // everything a phone insists on happens synchronously in this tap: session, context, resume
+  mediaSession();
+  const fresh = !engine.G;
+  engine.unlock();
+  if (fresh) status(null, 'Starting audio…');
+  (async () => {
+    try {
+      await engine.init(); meterSetup();
+      if (engine.playing) engine.stop(); else await engine.start();
+    } catch (e) { toast('Audio could not start. ' + (e && e.message ? e.message : ''), 6000); }
+    refresh();
+    clearTimeout(warnT);
+    if (engine.playing) warnT = setTimeout(() => { if (engine.playing && engine.ctx.state !== 'running') toast('The browser is holding the sound back. Tap anywhere on the page once more.', 6000); }, 900);
+  })();
+}
+/* If the system suspended audio (a call, the lock screen, a strict browser), the next touch brings it back. */
+for (const ev of ['pointerdown', 'touchend', 'keydown']) window.addEventListener(ev, () => { if (engine.ctx && engine.ctx.state !== 'running') engine.unlock(); }, { capture: true, passive: true });
 const taps = [];
 function tap() {
   const now = performance.now();
@@ -112,9 +135,12 @@ function head() {
   bind(() => { playBtn.firstChild.textContent = engine.playing ? 'Stop' : 'Play'; });
   return h('header', { class: 'head' }, h('div', {}, h('h1', { text: 'Dub' }), statusEl), h('nav', {}, playBtn));
 }
-function status(bar) {
+let statusNote = '';
+function status(bar, note) {
+  if (note !== undefined) statusNote = note;
+  if (engine.G) statusNote = '';
   const s = S(), name = scaleById(s.scale, s.custom).name;
-  statusEl.textContent = engine.playing && bar != null
+  statusEl.textContent = statusNote ? statusNote : engine.playing && bar != null
     ? `Bar ${bar + 1} · ${SCENE_NAMES[s.scene]} · ${KEYS[engine.tun.key]} ${engine.tun.scale.name}`
     : `Generative dub techno · ${VERSION} · ${KEYS[s.key]} ${name}`;
 }
@@ -307,6 +333,7 @@ function advExport() {
   const busy = async (label, fn) => { note.textContent = label; try { await fn(); note.textContent = 'Done.'; } catch (e) { note.textContent = (e && e.message) || 'Export failed.'; } };
   const recBtn = act('Record', async () => {
     if (recorder) { const r = recorder; recorder = null; refresh(); const f = await r.stop(); try { await download(f.name.replace('dub-take', 'dub-take-' + fileTag()), f.data, f.type); } catch (e) { toast(e.message, 5000); } return; }
+    engine.unlock();
     try { await engine.init(); meterSetup(); recorder = startRecording(engine.ctx, engine.output, engine.tape); recT0 = performance.now(); if (!engine.playing) await engine.start(); } catch (e) { toast('Recording could not start. ' + (e.message || '')); }
     refresh();
   });

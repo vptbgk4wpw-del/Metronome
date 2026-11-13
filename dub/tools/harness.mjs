@@ -12,7 +12,7 @@ const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };
 const HARNESS = `<!doctype html><meta charset=utf-8><title>harness</title><script type=module>import * as Dub from './dist/dub-engine.js'; window.Dub = Dub; window.ready = true;</script>`;
 
-export async function open({ url = '/harness', viewport = { width: 1280, height: 900 }, headless = true } = {}) {
+export async function open({ url = '/harness', viewport = { width: 1280, height: 900 }, headless = true, args = ['--autoplay-policy=no-user-gesture-required'], context: ctxOpt = {}, init = null } = {}) {
   const server = http.createServer((req, res) => {
     const u = decodeURIComponent(req.url.split('?')[0]);
     if (u === '/harness') { res.writeHead(200, { 'content-type': 'text/html' }); res.end(HARNESS); return; }
@@ -22,9 +22,10 @@ export async function open({ url = '/harness', viewport = { width: 1280, height:
   });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${server.address().port}`;
-  const browser = await chromium.launch({ headless, args: ['--autoplay-policy=no-user-gesture-required'] });
-  const context = await browser.newContext({ viewport });
+  const browser = await chromium.launch({ headless, args });
+  const context = await browser.newContext({ viewport, ...ctxOpt });
   const page = await context.newPage();
+  if (init) await page.addInitScript(init);
   const errors = [];
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', e => errors.push(String(e)));
