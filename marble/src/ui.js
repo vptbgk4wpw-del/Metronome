@@ -84,7 +84,7 @@ const controls = {};
 function el(tag, cls, html){ const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
 function setPct(inp){ const v = (inp.value - inp.min) / (inp.max - inp.min) * 100; inp.style.setProperty('--pct', v + '%'); }
 let saveT = 0;
-export function saveSoon(){ clearTimeout(saveT); saveT = setTimeout(() => store.set('state', P), 400); }
+export function saveSoon(){ clearTimeout(saveT); saveT = setTimeout(() => store.set('state2', P), 400); }
 
 let H = null;   // hooks from main: clear, resize, setQuality, shot, api
 function range(k){

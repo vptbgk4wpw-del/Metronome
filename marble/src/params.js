@@ -2,14 +2,15 @@
 export const DEFAULTS = {
   palette:0, tool:'drop', brush:0.07, tempo:0.3, zoom:1, scale:1,
   // marbling
-  mBubble:0.35, mSize:1, mRings:0.4, mWater:0.12, mEdge:0.45, waves:0.5, drift:0.3, swirl:5, auto:1, autoDrop:6,
+  mBubble:0.35, mSize:1, mRings:0.4, mWater:0.12, mEdge:0, waves:0.5, drift:0.3, swirl:5, auto:1, autoDrop:6,
   // light and pigment
-  mixKM:1, exposure:1.0, autoExp:1, hot:0.45, dyeDensity:1.5, lens:0.5, caustic:0.45, sat:1.08,
-  gran:0.45, streak:0.5, paper:0.4,
+  // flat colour by default: no edge lines, lensing, caustics or texture; the looks and Advanced bring them back
+  mixKM:1, exposure:1.0, autoExp:1, hot:0.15, dyeDensity:2.2, lens:0, caustic:0, sat:1.05,
+  gran:0, streak:0, paper:0,
   // wet layer and ox gall, both off by default
   wet:0, wetFlow:0.5, wetVisc:0.4, gall:0, gallKind:0.7,
   // post
-  glow:0.6, glowThresh:0.75, halation:0.35, aberr:0.3, grain:0.45, grainSize:1.3, flicker:0.15,
+  glow:0.12, glowThresh:0.9, halation:0, aberr:0, grain:0.08, grainSize:1.3, flicker:0,
   // sound
   aGain:1.0, pulse:1.0, bubbling:0.5, gate:0.35, aGlitch:0.6,
   gBpm:118, gVol:0.8, gKick:1, gBass:1, gChord:1, gHat:1, gAir:1,
@@ -24,7 +25,7 @@ export const store = {
 };
 export const P = Object.assign({}, DEFAULTS);
 {
-  const saved = store.get('state', {});
+  const saved = store.get('state2', {});   // 'state2': the defaults changed to flat colour, older saved states are left behind
   for (const k in saved) if (k in DEFAULTS && typeof saved[k] === typeof DEFAULTS[k]) P[k] = saved[k];
   if (!['drop', 'comb', 'swirl', 'stylus'].includes(P.tool)) P.tool = 'drop';
 }
@@ -54,11 +55,12 @@ export const PAL = () => PALETTES[P.palette];
 
 export const PRESETS = [
   { name:'Ebru', palette:0 },
-  { name:'Suminagashi', palette:2, tempo:0.25, mRings:0.9, mBubble:0.3, mWater:0.3, mEdge:0.25, drift:0.45, swirl:2, waves:0.8, lens:0.15, caustic:0.15, glow:0.25, halation:0.1, gran:0.7, paper:0.8, streak:0.35, sat:1.0, hot:0.3 },
-  { name:'Paintbox', palette:1, mRings:0.3, mEdge:0.35, gran:0.6, streak:0.7, paper:0.5, glow:0.45, sat:1.12 },
-  { name:'Lava', palette:3, tempo:0.35, mBubble:0.6, mSize:1.3, mRings:0.25, mWater:0.05, mEdge:0.6, lens:0.9, caustic:0.8, hot:0.5, glow:0.95, glowThresh:0.6, halation:0.7, grain:0.6, flicker:0.3, gran:0.2, paper:0.15 },
-  { name:'Lightbox', palette:4, mixKM:0.15, mEdge:0.5, lens:0.8, caustic:0.7, dyeDensity:1.6, glow:0.85, glowThresh:0.65, halation:0.5, aberr:0.4, grain:0.55, gran:0.15, paper:0.1, streak:0.3 },
-  { name:'Acid', palette:5, tempo:0.4, mBubble:0.5, mRings:0.55, swirl:9, mEdge:0.55, glow:0.9, glowThresh:0.65, halation:0.4, aberr:0.9, sat:1.2, gran:0.25, paper:0.2 },
+  { name:'Suminagashi', palette:2, tempo:0.25, mRings:0.9, mBubble:0.3, mWater:0.3, drift:0.45, swirl:2, waves:0.8, sat:1.0 },
+  { name:'Paintbox', palette:1, mRings:0.3, sat:1.1 },
+  { name:'Paper', palette:0, mEdge:0.3, gran:0.55, streak:0.6, paper:0.6, grain:0.3 },
+  { name:'Lava', palette:3, tempo:0.35, mBubble:0.6, mSize:1.3, mRings:0.25, mWater:0.05, mEdge:0.5, lens:0.9, caustic:0.8, hot:0.5, dyeDensity:1.5, glow:0.95, glowThresh:0.6, halation:0.7, grain:0.5, flicker:0.3 },
+  { name:'Lightbox', palette:4, mixKM:0.15, mEdge:0.45, lens:0.8, caustic:0.7, hot:0.45, dyeDensity:1.6, glow:0.85, glowThresh:0.65, halation:0.5, grain:0.45 },
+  { name:'Acid', palette:5, tempo:0.4, mBubble:0.5, mRings:0.55, swirl:9, sat:1.15 },
 ];
 
 /* mq: share of screen resolution the marble is evaluated at; mb: baked texture; wet: velocity grid; rd: ox gall grid */
