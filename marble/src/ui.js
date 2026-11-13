@@ -18,7 +18,6 @@ const SL = {
   bubbling:{ l:'Bubbling', min:0, max:1, s:0.01, f:pct },
   gate:{ l:'Gate', min:0, max:1, s:0.01, f:pct },
   aGain:{ l:'Sensitivity', min:0, max:3, s:0.01, f:pct },
-  aGlitch:{ l:'Lamp glitch', min:0, max:1, s:0.01, f:pct },
   gBpm:{ l:'Generator tempo', min:90, max:140, s:1, f:v => Math.round(v) + ' BPM' },
   gVol:{ l:'Generator volume', min:0, max:1, s:0.01, f:pct },
   drift:{ l:'Drift', min:0, max:1.5, s:0.01, f:f2 },
@@ -151,7 +150,7 @@ export function buildUI(hooks){
   gen.appendChild(range('gBpm')); gen.appendChild(range('gVol'));
   host.appendChild(section('Sound',
     optList('segSrc', [['dub', 'Dub techno', 'G'], ['mic', 'Mic'], ['file', 'File'], ['none', 'Off', 'M']], pickSource),
-    status, meters, range('pulse'), range('bubbling'), range('aGlitch'), range('gate'), range('aGain'), gen));
+    status, meters, range('pulse'), range('bubbling'), range('gate'), range('aGain'), gen));
 
   host.appendChild(section('Output',
     acts([['btnRec', 'Record', 'V', toggleRec], ['btnShot', 'Save frame', 'P', () => H.shot()], ['btnPrint', 'Pull a print', 'T', () => pullPrint(H.api)]]),

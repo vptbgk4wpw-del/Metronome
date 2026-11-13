@@ -2,7 +2,7 @@
    test generator. The only additions are `hits` and `level` on each band, which Marble's vents read.
 
    Each band is normalised to its own peak, gated against its own recent average so only distinct hits open it,
-   then smoothed by a soft spring. Air, the very top, glitches the lamp.
+   then smoothed by a soft spring. Air, the very top, is only metered here (in Dish it glitches the lamp).
    Kick is not "bass": it listens to the punch region through its own filter and keeps only the transient,
    so a sustained bass line leaves the paint alone. */
 import { P } from './params.js';
@@ -97,7 +97,7 @@ export const AU = {
 /* ───────────────────────── dub techno generator ─────────────────────────
    A test signal in the Rhythm & Sound spirit: soft four-on-the-floor kick, heavy sub line, one minor-ninth stab
    thrown into a filtered feedback delay and a long dark reverb, sparse hats, tape hiss, and a few very high ticks
-   ("air") to test the lamp glitch. Parts can be muted to check which bubbles answer to which sound. */
+   ("air"). Parts can be muted to check which bubbles answer to which sound. */
 export const DUB = {
   on:false, g:null, timer:0, next:0, step:0, noise:null,
   bassLines:[

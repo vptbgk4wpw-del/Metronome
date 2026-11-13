@@ -43,7 +43,7 @@ function boot(){
     for (let i = bloom.length - 1; i > 0; i--) run(PR.up, bloom[i - 1], { uSrc:bloom[i].tex, uTexel:bloom[i].texel });
     gl.disable(gl.BLEND);
     run(PR.final, null, { uScene:S.scene.tex, uBloom:bloom[0].tex, uGlow:P.glow * (0.6 + 0.4 * mod.light), uHal:P.halation, uAberr:P.aberr,
-      uGrain:P.grain * (1 + mod.shimmer * 0.6), uGrainSize:P.grainSize * Math.max(1, S.W / 1920), uExposure:P.exposure * mod.light * S.bal.autoExp, uSat:P.sat, uTime:S.time, uFlick:P.flicker, uGlitch:mod.glitch });
+      uGrain:P.grain * (1 + mod.shimmer * 0.6), uGrainSize:P.grainSize * Math.max(1, S.W / 1920), uExposure:P.exposure * mod.light * S.bal.autoExp, uSat:P.sat, uTime:S.time, uFlick:P.flicker });
   }
 
   /* ───────── pointer ───────── */
@@ -129,7 +129,6 @@ function boot(){
     S.time += dt;
     AU.update(dt);
     S.mod.shimmer = AU.pulse[2] * 0.4;
-    S.mod.glitch = Math.min(1, AU.pulse[3]) * P.aGlitch;
     const simDt = Math.min(1 / 20, dt * tempoNow());
     if (P.auto) { auto.t += simDt / 0.3; if (auto.t > auto.next) { auto.t = 0; auto.next = P.autoDrop * rnd(0.6, 1.4); MB.event(); } }
     BUB.update(dt);

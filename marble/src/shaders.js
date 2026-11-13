@@ -314,7 +314,7 @@ void main(){
   o = vec4(s / 16.0, 1.0);
 }`,
 final: HEAD + NOISE + TONE + `
-uniform sampler2D uScene, uBloom; uniform float uGlow, uHal, uAberr, uGrain, uGrainSize, uExposure, uSat, uTime, uFlick, uGlitch;
+uniform sampler2D uScene, uBloom; uniform float uGlow, uHal, uAberr, uGrain, uGrainSize, uExposure, uSat, uTime, uFlick;
 void main(){
   vec2 dc = vUv - 0.5; float k = uAberr * 0.014 * dot(dc, dc) * 4.0;
   vec3 col = vec3(texture(uScene, vUv - dc * k).r, texture(uScene, vUv).g, texture(uScene, vUv + dc * k).b);
@@ -322,13 +322,6 @@ void main(){
   float bll = dot(bl, vec3(0.3, 0.5, 0.2));
   col += bl * uGlow * 1.4 + vec3(1.0, 0.3, 0.1) * bll * uHal * 1.2;
   float fl = 1.0 + uFlick * (0.05 * sin(uTime * 7.3) + 0.03 * sin(uTime * 13.7 + 1.3) + 0.04 * (hash12(vec2(floor(uTime * 24.0), 3.1)) - 0.5));
-  if (uGlitch > 0.001) {
-    float gr = hash12(vec2(floor(uTime * 50.0), 9.7)), gs = hash12(vec2(floor(uTime * 50.0), 2.3));
-    float dip = mix(1.0, gr < 0.35 ? 0.12 : (gr > 0.9 ? 1.5 : 0.75), uGlitch);
-    float band = step(0.72, gs) * smoothstep(0.0, 0.02, abs(vUv.y - hash12(vec2(floor(uTime * 50.0), 5.1))));
-    fl *= dip * mix(1.0, 0.8 + 0.2 * band, uGlitch);
-    col *= mix(vec3(1.0), vec3(1.08, 0.94, 0.78), uGlitch * (1.0 - gr));
-  }
   vec2 gp = floor(gl_FragCoord.xy / uGrainSize) + floor(fract(uTime * 9.7) * 97.0) * vec2(13.1, 71.7);
   o = vec4(tone(col, uExposure * fl, uSat, gp, uGrain), 1.0);
 }`,

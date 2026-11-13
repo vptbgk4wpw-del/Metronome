@@ -12,7 +12,7 @@ export const DEFAULTS = {
   // post
   glow:0.12, glowThresh:0.9, halation:0, aberr:0, grain:0.08, grainSize:1.3, flicker:0,
   // sound
-  aGain:1.0, pulse:1.0, bubbling:0.5, gate:0.35, aGlitch:0.6,
+  aGain:1.0, pulse:1.0, bubbling:0.5, gate:0.35,
   gBpm:118, gVol:0.8, gKick:1, gBass:1, gChord:1, gHat:1, gAir:1,
   // output
   quality:1, renderScale:0.8, printSize:0,

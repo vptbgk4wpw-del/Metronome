@@ -3,7 +3,7 @@ import { P } from './params.js';
 
 export const S = {
   time:0, W:0, H:0, PR:null, scene:null, bloom:[],
-  mod:{ shimmer:0, light:1, glitch:0 },
+  mod:{ shimmer:0, light:1 },
   bal:{ dye:0.8, lum:0.25, ch:[0.2, 0.2, 0.2, 0.2], ok:false, autoExp:1 },
   ptr:{ down:false, x:0.5, y:0.5, lx:0.5, ly:0.5, stroke:0, id:null },
   held:{ shift:false },
