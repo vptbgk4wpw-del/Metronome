@@ -4,7 +4,7 @@ import { Tuning, scaleById } from './tuning.js';
 export const PARTS = ['kick', 'bass', 'stab', 'pad', 'hats', 'rim', 'perc', 'air', 'noise', 'siren'];
 export const PART_NAMES = { kick: 'Kick', bass: 'Sub bass', stab: 'Chord stab', pad: 'Pad / drone', hats: 'Hats', rim: 'Rim / clave', perc: 'Perc', air: 'Air', noise: 'Noise', siren: 'Siren / FX' };
 export const SCENE_NAMES = { intro: 'Intro', groove: 'Groove', break: 'Break', drop: 'Drop' };
-export const STYLE_NAMES = { four: 'Four on the floor', steppers: 'Steppers', onedrop: 'One drop', rockers: 'Rockers', half: 'Half-time' };
+export const STYLE_NAMES = { four: 'Four on the floor', steppers: 'Steppers', onedrop: 'One drop', rockers: 'Rockers', half: 'Half-time', dish: 'Dish' };
 export const VOICING_NAMES = { auto: 'Auto', m79: 'Minor 7/9', sus: 'Sus', fifths: 'Fifths', cluster: 'Cluster', stack: 'Scale stack' };
 export const PROG_NAMES = { 'i': 'i', 'i-VII': 'i–VII', 'i-iv': 'i–iv', 'i-v': 'i–v', 'i-VI-VII': 'i–VI–VII', custom: 'Custom' };
 /* Delay times locked to the tempo, in beats. A dotted eighth and 3/16 are the same length, so it is listed once. */
@@ -40,6 +40,23 @@ export const DEFAULTS = {
 
 export const PRESETS = {
   'Default': {},
+  /* The generator from Dish 1.1, rebuilt on this engine: its fixed patterns (style Dish) and its sound.
+     The original is in A Aeolian at 118 BPM; the preset leaves key and scale as they are. */
+  'Dish': { tempo: 118, swing: 0.35, bars: 4, style: 'dish', voicing: 'm79', progression: 'i', intensity: 0.6, scene: 'groove', auto: false,
+    parts: {
+      kick:  { level: 0.8, density: 0.6, variation: 0, tune: 'root', decay: 0.31, punch: 0.3, tone: 0.22, dly: 0, rev: 0 },
+      bass:  { level: 0.94, density: 0.6, variation: 0, shape: 'sine', glide: 0, octave: 0, filter: 0.41, dly: 0, rev: 0 },
+      stab:  { level: 0.5, density: 0.6, variation: 0, detune: 8, cutoff: 0.45, res: 0.5, env: 0, length: 0.2, lfoDepth: 0.5, lfoRate: 0.045, dly: 1, rev: 0.95 },
+      pad:   { level: 0, density: 0 },
+      hats:  { level: 0.53, density: 0.6, variation: 0, tone: 0.44, decay: 0.25, dly: 0.32, rev: 0 },
+      rim:   { level: 0.47, density: 0.6, variation: 0, dly: 0, rev: 1 },
+      perc:  { level: 0, density: 0 },
+      air:   { level: 0.57, density: 0.6, variation: 0, dly: 0, rev: 0 },
+      noise: { level: 0.49, density: 0, dly: 0, rev: 0 },
+      siren: { level: 0, density: 0 },
+    },
+    delay: { sync: 'd8', feedback: 0.64, hp: 320, lp: 1500, sat: 0.1, wow: 0, flutter: 0, ping: false, level: 1 },
+    reverb: { type: 'plate', size: 0.54, damp: 0.78, level: 0.5 }, master: { dj: 0, sat: 0, comp: 0.7 } },
   'Burial Mix': { tempo: 104, swing: 0.2, style: 'onedrop', voicing: 'auto', progression: 'i',
     parts: { kick: { decay: 0.5, punch: 0.35, tone: 0.2 }, bass: { level: 0.9, shape: 'sine', filter: 0.3 }, stab: { cutoff: 0.4, res: 0.3, length: 0.18, dly: 0.8, rev: 0.5 }, hats: { level: 0.35 }, rim: { level: 0.6, rev: 0.6 }, noise: { level: 0.6 } },
     delay: { sync: 'd8', feedback: 0.68, lp: 1300, hp: 280, sat: 0.45, wow: 0.35 }, reverb: { type: 'spring', size: 0.55, damp: 0.6, level: 0.6 }, master: { sat: 0.35 } },

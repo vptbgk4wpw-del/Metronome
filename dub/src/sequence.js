@@ -102,9 +102,9 @@ const KICK = {
   steppers: { core: [[0, 1], [4, 0.95], [8, 1], [12, 0.95]],  extra: [[15, 0.5], [10, 0.5], [6, 0.45], [14, 0.5]] },
   onedrop:  { core: [[8, 1]],                                   extra: [[15, 0.5], [0, 0.8], [11, 0.5], [14, 0.45]] },
   rockers:  { core: [[0, 1], [8, 0.95]],                        extra: [[10, 0.6], [15, 0.5], [6, 0.5], [3, 0.45]] },
-  half:     { core: [[0, 1]],                                   extra: [[10, 0.7], [7, 0.55], [14, 0.5], [3, 0.45]] },
+  half:     { core: [[0, 1]],                                   extra: [[10, 0.7], [7, 0.55], [14, 0.5], [3, 0.45]] },  dish:     { core: [[0, 1], [4, 0.86], [8, 0.86], [12, 0.86]],  extra: [] },
 };
-const BACKBEAT = { four: [[4, 12], 0.42], steppers: [[8], 0.1], onedrop: [[8], 0.05], rockers: [[4, 12], 0.1], half: [[8], 0.1] };
+const BACKBEAT = { dish: [[], 1], four: [[4, 12], 0.42], steppers: [[8], 0.1], onedrop: [[8], 0.05], rockers: [[4, 12], 0.1], half: [[8], 0.1] };
 
 function context(part, S, tun, seed, epoch, phrase) {
   const base = phrase * S.bars;
@@ -288,7 +288,40 @@ function genSiren(c) {
   return out;
 }
 
-const GEN = { kick: genKick, bass: genBass, stab: genStab, pad: genPad, hats: genHats, rim: genRim, perc: genPerc, air: genAir, siren: genSiren, noise: (c) => c.each(() => []) };
+/* ── the Dish generator, as a style: the fixed patterns of the DUB object in dish.html, written in scale
+   degrees. Two four-bar bass lines, four chord rhythms changing every two bars, offbeat hats with ghosts,
+   a rim on every second bar, air ticks. Only the hits that were random there are random here (by seed). ── */
+const DISH_BASS = [
+  [[0, 5, 'r'], [7, 1, 'r'], [8, 3, '5'], [12, 3, '7']],
+  [[0, 3, 'r'], [3, 1, 'r'], [6, 2, 'r'], [10, 2, '3'], [14, 2, '7']],
+];
+const DISH_CHORD = [[2, 10], [2], [2, 10, 13], [6]];
+const DISH = {
+  kick(c) { const note = { deg: 0, oct: c.tun.octFor(0, REG.sub) }; return c.each(() => KICK.dish.core.map(([s, v]) => H(s, 0, 1, v, { notes: [note] }))); },
+  bass(c) {
+    const { tun, n } = c, oct = tun.registerOct(REG.sub) + (c.S.parts.bass.octave | 0);
+    const fit = (deg) => { let d = deg; while (tun.hz(d, oct) < 34) d += n; return { deg: d, oct }; };
+    return c.each((b) => { const R = c.root(b);
+      return DISH_BASS[((c.base + b) >> 2) % 2].map(([s, len, d], i) => H(s, i * 0.1, 1, i ? 0.9 : 1, { len, notes: [fit(d === 'r' ? R : d === '5' ? tun.fifthOf(R) - n : d === '7' ? R + tun.step(6) - n : R + tun.step(2))] })); });
+  },
+  stab(c) {
+    const oct = c.tun.registerOct(REG.stab);
+    return c.each((b) => { const abs = c.base + b, v = c.B('dish', abs), notes = chordDegrees(c.S, c.tun, c.root(b)).map(deg => ({ deg, oct }));
+      return DISH_CHORD[(abs >> 1) % 4].map((s, i) => H(s, i * 0.1, 1, 0.6 + 0.4 * v(), { notes })); });
+  },
+  hats(c) {
+    return c.each((b) => { const hits = [];
+      for (let s = 0; s < STEPS; s++) { if (s % 4 === 2) hits.push(H(s, 0, 1, 0.5, { kind: 'closed' })); else if (s % 2 === 1) hits.push(H(s, 0.3, 0.35, 0.16, { kind: 'closed' })); }
+      if ((c.base + b) % 4 === 3) hits.push(H(14, 0.2, 1, 0.3, { kind: 'open', len: 2 }));
+      return hits; });
+  },
+  rim(c) { const note = { deg: 0, oct: c.tun.registerOct(REG.rim) }; return c.each((b) => (c.base + b) % 2 === 1 ? [H(12, 0, 0.7, 0.75, { kind: 'rim', notes: [note] })] : []); },
+  air(c) { return c.each((b) => { const abs = c.base + b, hits = []; if (abs % 2 === 0) hits.push(H(7, 0, 1, 1)); if (abs % 4 === 3) [13, 14, 15].forEach(s => hits.push(H(s, 0.1, 1, 0.35))); return hits; }); },
+  pad: (c) => c.each(() => []), perc: (c) => c.each(() => []), siren: (c) => c.each(() => []), noise: (c) => c.each(() => []),
+};
+
+const GEN0 = { kick: genKick, bass: genBass, stab: genStab, pad: genPad, hats: genHats, rim: genRim, perc: genPerc, air: genAir, siren: genSiren, noise: (c) => c.each(() => []) };
+const GEN = Object.fromEntries(Object.keys(GEN0).map(p => [p, (c) => (c.style === 'dish' ? DISH[p] : GEN0[p])(c)]));
 
 /* How often a part's pattern changes: the variation in force is named by the last phrase at which it changed. */
 export function epochAt(seed, part, variation, phrase) {
