@@ -154,8 +154,10 @@ function top() {
     return groups.map(([g, list]) => choice('scale', list.map(s => [s.id, s.name]), { cap: g, set: (id) => engine.setScale(id), aria: g + ' scales' }));
   });
   const seedOut = h('b', {}); bind(() => { seedOut.textContent = String(S().seed).padStart(5, '0'); });
-  const sceneBtns = SCENE_ORDER.map(id => h('button', { class: 'opt', type: 'button', onclick: () => engine.setScene(id) }));
-  bind(() => sceneBtns.forEach((b, i) => { const id = SCENE_ORDER[i], pend = engine.pendingScene === id; b.textContent = SCENE_NAMES[id] + (pend ? ' …' : ''); b.classList.toggle('on', S().scene === id || pend); b.setAttribute('aria-pressed', S().scene === id); }));
+  const sceneBtns = SCENE_ORDER.map(id => h('button', { class: 'opt', type: 'button', text: SCENE_NAMES[id], onclick: () => engine.setScene(id) }));
+  const sceneNext = h('b', {});
+  sceneNextEl = sceneNext;
+  bind(() => { const pend = engine.pendingScene; sceneBtns.forEach((b, i) => { const id = SCENE_ORDER[i], on = S().scene === id; b.classList.toggle('on', on); b.classList.toggle('pend', pend === id); b.setAttribute('aria-pressed', on); }); sceneInfo(); });
   const presetList = dynamic(h('div', { class: 'opts', role: 'group', 'aria-label': 'Presets' }), () => Object.keys(userPresets).join('|') + '#' + lastPreset, () => [
     ...Object.keys(PRESETS).map(n => h('button', { class: 'opt' + (n === lastPreset ? ' on' : ''), type: 'button', text: n, onclick: () => loadPreset(n) })),
     ...Object.keys(userPresets).map(n => h('button', { class: 'opt' + (n === lastPreset ? ' on' : ''), type: 'button', onclick: () => loadPreset(n) }, n,
@@ -166,8 +168,15 @@ function top() {
     sec('s5', 'Key', choice('key', KEYS.map((k, i) => [i, k]), { aria: 'Key' })),
     sec('s4', null, h('details', { class: 'inl' }, scaleSum, scaleList)),
     sec('s3', h('div', { class: 'cap' }, 'Seed', seedOut), h('div', { class: 'opts' }, act('New seed', () => { if (S().seedLock) toast('Seed is locked.'); else engine.newSeed(); }, 'N'), toggle('Lock', 'seedLock'))),
-    sec('s5', 'Scene', h('div', { class: 'opts', role: 'group', 'aria-label': 'Scene' }, sceneBtns, toggle('Auto', 'auto')), slider('Intensity', 'intensity')),
+    sec('s5', h('div', { class: 'cap' }, 'Scene', sceneNext), h('div', { class: 'opts', role: 'group', 'aria-label': 'Scene' }, sceneBtns), h('div', { class: 'opts' }, h('span', { class: 'grp-cap', text: 'Change' }), choice('auto', [[false, 'By hand'], [true, 'Auto']], { aria: 'Scene change' })), slider('Intensity', 'intensity')),
     sec('s4', 'Presets', presetList));
+}
+/* Says which scene is queued and how long until it starts: scenes change on the phrase line, not at the tap. */
+let sceneNextEl = null;
+function sceneInfo() {
+  if (!sceneNextEl) return;
+  const pend = engine.pendingScene, bars = S().bars, left = bars - (shownBar % bars);
+  sceneNextEl.textContent = pend && engine.playing ? `${SCENE_NAMES[pend]} in ${left} ${left === 1 ? 'bar' : 'bars'}` : '';
 }
 function loadPreset(name) {
   if (PRESETS[name]) engine.loadPreset(name); else if (userPresets[name]) { const keep = { midi: S().midi, master: { volume: S().master.volume } }; engine.patch(clone(userPresets[name])); engine.patch(keep); }
@@ -208,7 +217,7 @@ function partAdvanced(part) {
   const p = `parts.${part}.`, out = [];
   if (part === 'kick') out.push(choice(p + 'tune', [['root', 'Root'], ['fifth', 'Fifth']], { cap: 'Tune' }), slider('Decay', p + 'decay'), slider('Punch', p + 'punch'), slider('Tone', p + 'tone', { fmt: (v) => snapped(120 * Math.pow(2, v * 3.6)) }));
   if (part === 'bass') out.push(choice(p + 'shape', [['sine', 'Sine'], ['triangle', 'Triangle'], ['saw', 'Saw'], ['square', 'Square']], { cap: 'Wave' }), choice(p + 'octave', [[-1, '−1'], [0, '0'], [1, '+1']], { cap: 'Octave' }),
-    slider('Glide', p + 'glide', { max: 0.3, fmt: (v) => Math.round(v * 1000) + ' ms' }), slider('Filter', p + 'filter', { fmt: (v) => snapped(70 * Math.pow(2, v * 4.3)) }), slider('Harmonics', p + 'drive'));
+    slider('Glide', p + 'glide', { max: 0.3, fmt: (v) => Math.round(v * 1000) + ' ms' }), slider('Filter', p + 'filter', { fmt: (v) => snapped(70 * Math.pow(2, v * 4.3)) }));
   if (part === 'stab') out.push(choice('voicing', Object.entries(VOICING_NAMES), { cap: 'Voicing', wide: true }), slider('Detune', p + 'detune', { max: 30, step: 1, fmt: (v) => '±' + v + ' c' }),
     slider('Envelope', p + 'env'), slider('Length', p + 'length', { min: 0.05, max: 1.5, log: true, fmt: (v) => Math.round(v * 1000) + ' ms' }));
   if (part === 'pad') out.push(slider('Tone', p + 'tone', { fmt: (v) => snapped(300 * Math.pow(2, v * 4)) }));
@@ -410,7 +419,7 @@ function frame() {
   if (engine.ctx && engine.playing) {
     const now = engine.ctx.currentTime; let cur = null;
     while (queue.length && queue[0].swung <= now) cur = queue.shift();
-    if (cur) { if (cur.bar !== shownBar) { shownBar = cur.bar; dirty = true; } if (cur.step !== shownStep) { shownStep = cur.step; dirty = true; } status(cur.bar); }
+    if (cur) { if (cur.bar !== shownBar) { shownBar = cur.bar; dirty = true; sceneInfo(); } if (cur.step !== shownStep) { shownStep = cur.step; dirty = true; } status(cur.bar); }
   } else if (shownStep !== -1 || statusEl.textContent === '') { shownStep = -1; shownBar = 0; dirty = true; }
   if (!engine.playing) status(null);
   if (dirty) { dirty = false; drawDots(); }

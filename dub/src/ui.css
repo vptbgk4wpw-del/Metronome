@@ -41,15 +41,23 @@ kbd{font:inherit;font-size:12px;color:var(--faint);margin-left:4px}
 
 .opts{display:flex;flex-wrap:wrap;gap:4px 16px;align-items:center}
 .opt,.act{background:none;border:0;padding:2px 0;margin:0;cursor:pointer;color:var(--dim);text-align:left;display:inline-flex;align-items:center;gap:6px;min-height:24px;border-radius:0;white-space:nowrap;touch-action:manipulation;user-select:none;-webkit-user-select:none}
-.opt:hover{color:var(--ink)}
 .opt.on{color:var(--ink)}
 .opt .x{color:var(--faint);padding:0 2px}
-.opt .x:hover{color:var(--rec)}
 .act{color:var(--ink)}
 .act::before{content:"→"}
-.act:hover{opacity:.7}
 .act.on{color:var(--rec)}
 .act[disabled]{color:var(--faint);cursor:default;opacity:1}
+/* Hover only where there is a real pointer. On a touch screen hover sticks to the last thing tapped and would
+   leave a switched-off word white: there, white means on and nothing else. */
+@media (hover:hover) and (pointer:fine){
+  .opt:hover{color:var(--ink)}
+  .opt.on:hover{opacity:.8}
+  .opt .x:hover{color:var(--rec)}
+  .act:hover{opacity:.7}
+}
+.opt.pend{animation:pend .5s steps(1) infinite}
+@keyframes pend{0%{color:var(--ink)}50%{color:var(--faint)}}
+@media (prefers-reduced-motion:reduce){.opt.pend{animation:none;color:var(--dim)}.opt.pend::after{content:"…"}}
 .grp-cap{color:var(--faint);font-size:13px;min-width:64px}
 
 .row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:0 12px}
@@ -87,7 +95,6 @@ input[type=text]::placeholder{color:var(--faint)}
 .dots i.now{box-shadow:0 0 0 2px var(--bg),0 0 0 3px var(--ink)}
 .dots.flat{display:block;height:1px;background:var(--line);align-self:center}
 .more{color:var(--dim);justify-content:flex-end;min-width:20px}
-.more:hover{color:var(--ink)}
 .padv{padding:8px var(--pad) 18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px 28px;align-items:end}
 .padv .opts{align-self:center}
 .padv .wide{grid-column:1/-1}
