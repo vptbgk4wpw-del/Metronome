@@ -20,8 +20,8 @@ export const DEFAULTS = {
   style: 'four', progression: 'i', customProg: '1:2 7:2', voicing: 'auto',
   scene: 'groove', auto: false, autoBars: 16, intensity: 0.6,
   parts: {
-    kick:  part({ level: 0.85, ch: 1, tune: 'root', decay: 0.42, punch: 0.5, tone: 0.3 }),
-    bass:  part({ level: 0.8, ch: 2, shape: 'sine', glide: 0, octave: 0, filter: 0.4 }),
+    kick:  part({ level: 0.85, ch: 1, tune: 'root', decay: 0.42, punch: 0.55, tone: 0.55 }),
+    bass:  part({ level: 0.8, ch: 2, shape: 'sine', glide: 0, octave: 0, filter: 0.4, drive: 0.45 }),
     stab:  part({ level: 0.7, ch: 3, dly: 0.75, rev: 0.4, detune: 8, cutoff: 0.48, res: 0.38, env: 0.5, length: 0.22, lfoDepth: 0.35, lfoRate: 0.045, rotate: 1 }),
     pad:   part({ level: 0.45, ch: 4, dly: 0.15, rev: 0.5, variation: 0, tone: 0.4, rotate: 1 }),
     hats:  part({ level: 0.5, ch: 5, dly: 0.2, rev: 0.1, tone: 0.5, decay: 0.3 }),
@@ -33,14 +33,14 @@ export const DEFAULTS = {
   },
   delay: { sync: 'd8', free: 0.38, feedback: 0.62, hp: 320, lp: 1700, sat: 0.3, wow: 0.25, flutter: 0.15, ping: true, freeze: false, level: 0.7 },
   reverb: { type: 'plate', size: 0.6, damp: 0.5, level: 0.55 },
-  master: { dj: 0, sat: 0.25, comp: 0.4, volume: 0.8 },
+  master: { dj: 0, sat: 0.25, comp: 0.4, volume: 0.9 },
   xy: { mode: 'delay' },
   midi: { on: false, out: '', in: '', clockOut: true, clockIn: false, micro: 'bend', bend: 2, drums: 'gm' },
 };
 
 export const PRESETS = {
   'Burial Mix': { tempo: 104, swing: 0.2, style: 'onedrop', voicing: 'auto', progression: 'i',
-    parts: { kick: { decay: 0.5, punch: 0.35, tone: 0.2 }, bass: { level: 0.9, shape: 'sine', filter: 0.3 }, stab: { cutoff: 0.4, res: 0.3, length: 0.18, dly: 0.8, rev: 0.5 }, hats: { level: 0.35 }, rim: { level: 0.6, rev: 0.6 }, noise: { level: 0.6 } },
+    parts: { kick: { decay: 0.5, punch: 0.4, tone: 0.42 }, bass: { level: 0.9, shape: 'sine', filter: 0.3, drive: 0.55 }, stab: { cutoff: 0.4, res: 0.3, length: 0.18, dly: 0.8, rev: 0.5 }, hats: { level: 0.35 }, rim: { level: 0.6, rev: 0.6 }, noise: { level: 0.6 } },
     delay: { sync: 'd8', feedback: 0.68, lp: 1300, hp: 280, sat: 0.45, wow: 0.35 }, reverb: { type: 'spring', size: 0.55, damp: 0.6, level: 0.6 }, master: { sat: 0.35 } },
   'Deep Chord': { tempo: 120, swing: 0.1, style: 'four', voicing: 'm79', progression: 'i',
     parts: { stab: { cutoff: 0.5, res: 0.45, length: 0.35, detune: 12, lfoDepth: 0.5, lfoRate: 0.03, dly: 0.85, rev: 0.55 }, pad: { level: 0.5 }, hats: { level: 0.45 }, bass: { filter: 0.35 } },

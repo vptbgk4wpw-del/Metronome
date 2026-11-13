@@ -208,7 +208,7 @@ function partAdvanced(part) {
   const p = `parts.${part}.`, out = [];
   if (part === 'kick') out.push(choice(p + 'tune', [['root', 'Root'], ['fifth', 'Fifth']], { cap: 'Tune' }), slider('Decay', p + 'decay'), slider('Punch', p + 'punch'), slider('Tone', p + 'tone', { fmt: (v) => snapped(120 * Math.pow(2, v * 3.6)) }));
   if (part === 'bass') out.push(choice(p + 'shape', [['sine', 'Sine'], ['triangle', 'Triangle'], ['saw', 'Saw'], ['square', 'Square']], { cap: 'Wave' }), choice(p + 'octave', [[-1, '−1'], [0, '0'], [1, '+1']], { cap: 'Octave' }),
-    slider('Glide', p + 'glide', { max: 0.3, fmt: (v) => Math.round(v * 1000) + ' ms' }), slider('Filter', p + 'filter', { fmt: (v) => snapped(70 * Math.pow(2, v * 4.3)) }));
+    slider('Glide', p + 'glide', { max: 0.3, fmt: (v) => Math.round(v * 1000) + ' ms' }), slider('Filter', p + 'filter', { fmt: (v) => snapped(70 * Math.pow(2, v * 4.3)) }), slider('Harmonics', p + 'drive'));
   if (part === 'stab') out.push(choice('voicing', Object.entries(VOICING_NAMES), { cap: 'Voicing', wide: true }), slider('Detune', p + 'detune', { max: 30, step: 1, fmt: (v) => '±' + v + ' c' }),
     slider('Envelope', p + 'env'), slider('Length', p + 'length', { min: 0.05, max: 1.5, log: true, fmt: (v) => Math.round(v * 1000) + ' ms' }));
   if (part === 'pad') out.push(slider('Tone', p + 'tone', { fmt: (v) => snapped(300 * Math.pow(2, v * 4)) }));

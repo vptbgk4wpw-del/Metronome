@@ -6,7 +6,9 @@ import { PARTS, SYNC } from './state.js';
 import { makeDelay, makeReverb, makeMaster, satCurve, djFilter } from './fx.js';
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-const TRIM = { kick: 1, bass: 1, stab: 1, pad: 1, hats: 1, rim: 1, perc: 1, air: 1, noise: 1, siren: 1 };
+const TRIM = { kick: 1, bass: 1, stab: 1.9, pad: 1.6, hats: 1.9, rim: 1.8, perc: 1.6, air: 1.7, noise: 1, siren: 1.5 };
+/* Bass harmonics: an asymmetric tanh adds even and odd overtones above the sub, so the line is still there on speakers that cannot play 55 Hz. */
+const bassCurve = (drive) => { const k = 0.6 + drive * 7, o = 0.18 * drive, z = Math.tanh(k * o), n = Math.tanh(k * (1 + o)) - z, c = new Float32Array(2049); for (let i = 0; i < 2049; i++) c[i] = (Math.tanh(k * (i / 1024 - 1 + o)) - z) / n; return c; };
 export const stabCutoff = (x) => 200 * Math.pow(2, x * 5);       // 200 Hz – 6.4 kHz
 export const delayTime = (S) => clamp(S.delay.sync === 'free' || !SYNC[S.delay.sync] ? S.delay.free : SYNC[S.delay.sync][1] * 60 / S.tempo, 0.02, 3.8);
 
@@ -50,8 +52,8 @@ export function buildGraph(ctx, { tape = false, audit = null, dynamics = true } 
   /* chord filter LFO: moves the cutoff in cents around its (snapped) resting place */
   const lfo = osc('sine'), lfoG = gain(0); lfo.connect(lfoG); lfoG.connect(X.stab.f.detune); lfo.start();
   /* bass: one voice that is always there, so notes can glide */
-  const B = X.bass; B.o1 = osc('sine'); B.o2 = osc('sine'); B.g1 = gain(0.75); B.g2 = gain(0.45); B.amp = gain(0); B.lp = biq('lowpass', 0.8); B.duck = gain(1);
-  B.o1.connect(B.g1); B.o2.connect(B.g2); B.g1.connect(B.lp); B.g2.connect(B.lp); B.lp.connect(B.amp); B.amp.connect(B.duck); B.duck.connect(B.in);
+  const B = X.bass; B.o1 = osc('sine'); B.o2 = osc('sine'); B.g1 = gain(0.75); B.g2 = gain(0.45); B.amp = gain(0); B.lp = biq('lowpass', 0.8); B.duck = gain(1); B.sh = ctx.createWaveShaper(); B.sh.oversample = '2x'; B.pre = gain(1.6); B.post = gain(0.3); B.drive = -1;
+  B.o1.connect(B.g1); B.o2.connect(B.g2); B.g1.connect(B.lp); B.g2.connect(B.lp); B.lp.connect(B.amp); B.amp.connect(B.pre); B.pre.connect(B.sh); B.sh.connect(B.post); B.post.connect(B.duck); B.duck.connect(B.in);
   B.o1.start(); B.o2.start(); B.last = -1;
   /* noise bed: tape hiss and vinyl crackle, gated by the transport */
   const N = X.noise; N.gate = gain(0); N.hiss = ctx.createBufferSource(); N.hiss.buffer = white; N.hiss.loop = true; N.hissF = biq('bandpass', 0.5); N.hissG = gain(0.05);
@@ -75,6 +77,8 @@ export function buildGraph(ctx, { tape = false, audit = null, dynamics = true } 
     set(B.lp.frequency, snap(70 * Math.pow(2, k.bass.filter * 4.3)));
     const shape = { sine: 'sine', triangle: 'triangle', saw: 'sawtooth', square: 'square' }[k.bass.shape] || 'sine';
     if (B.o1.type !== shape) B.o1.type = shape;
+    const drive = clamp(k.bass.drive == null ? 0.45 : k.bass.drive, 0, 1);
+    if (drive !== B.drive) { B.drive = drive; B.sh.curve = bassCurve(drive); }
     set(B.g1.gain, shape === 'sine' ? 0.75 : shape === 'triangle' ? 0.7 : 0.35);
     set(X.stab.f.frequency, snap(stabCutoff(k.stab.cutoff)));
     set(X.stab.f.Q, 0.5 + k.stab.res * k.stab.res * 14);
@@ -108,15 +112,22 @@ export function buildGraph(ctx, { tape = false, audit = null, dynamics = true } 
   G.fadePads = (t = ctx.currentTime) => { for (const p of G.pads) { p.kill.gain.setTargetAtTime(0, t, 0.09); } G.pads = []; };
 
   /* ── voices ── */
-  const env = (peak, t, attack, decay) => { const a = gain(0); a.gain.setValueAtTime(0.0001, t); a.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + attack); a.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay); return a; };
+  /* Percussive envelope. The decay falls to `floor` of the peak over its length (−34 dB by default, so a sound
+     has a body for as long as its length says) and a short ramp closes it. */
+  const env = (peak, t, attack, decay, floor = 0.02) => {
+    const a = gain(0), p = Math.max(0.0002, peak);
+    a.gain.setValueAtTime(0.0001, t); a.gain.exponentialRampToValueAtTime(p, t + attack);
+    a.gain.exponentialRampToValueAtTime(Math.max(0.0001, p * floor), t + attack + decay); a.gain.linearRampToValueAtTime(0, t + attack + decay + 0.02);
+    return a;
+  };
   const tone = (type, hz, t, end, kind, detune = 0) => { const o = osc(type); o.frequency.setValueAtTime(F(hz, kind), t); if (detune) o.detune.setValueAtTime(detune, t); o.start(t); o.stop(end); return o; };
 
   const V = {
     kick(ev, hz, t, sd, P) {
       const f1 = hz[0], f0 = f1 * (P.punch < 0.5 ? 2 : 4);              // the sweep starts one or two octaves up, on the same degree
-      const sweep = 0.05 + (1 - P.punch) * 0.09, dec = 0.12 + P.decay * 0.75, o = osc('sine'), a = env(0.95 * ev.vel, t, 0.006, dec);
+      const sweep = 0.05 + (1 - P.punch) * 0.09, dec = 0.12 + P.decay * 0.75, o = osc('sine'), a = env(0.95 * ev.vel, t, 0.006, dec, 0.0006);
       o.frequency.setValueAtTime(F(f0, 'kick'), t); o.frequency.exponentialRampToValueAtTime(F(f1, 'kick'), t + sweep);
-      o.connect(a); a.connect(X.kick.in); o.start(t); o.stop(t + dec + 0.05);
+      o.connect(a); a.connect(X.kick.in); o.start(t); o.stop(t + dec + 0.08);
       if (P.punch > 0.05) { const c = noiseSrc(t, 0.01, ev.step), ca = env(0.5 * P.punch * ev.vel, t, 0.001, 0.008); c.connect(ca); ca.connect(X.kick.in); }
       B.duck.gain.setValueAtTime(0.4, t); B.duck.gain.linearRampToValueAtTime(1, t + 0.17);
     },

@@ -267,8 +267,8 @@ const DEFAULTS = {
   autoBars: 16,
   intensity: 0.6,
   parts: {
-    kick: part({ level: 0.85, ch: 1, tune: "root", decay: 0.42, punch: 0.5, tone: 0.3 }),
-    bass: part({ level: 0.8, ch: 2, shape: "sine", glide: 0, octave: 0, filter: 0.4 }),
+    kick: part({ level: 0.85, ch: 1, tune: "root", decay: 0.42, punch: 0.55, tone: 0.55 }),
+    bass: part({ level: 0.8, ch: 2, shape: "sine", glide: 0, octave: 0, filter: 0.4, drive: 0.45 }),
     stab: part({ level: 0.7, ch: 3, dly: 0.75, rev: 0.4, detune: 8, cutoff: 0.48, res: 0.38, env: 0.5, length: 0.22, lfoDepth: 0.35, lfoRate: 0.045, rotate: 1 }),
     pad: part({ level: 0.45, ch: 4, dly: 0.15, rev: 0.5, variation: 0, tone: 0.4, rotate: 1 }),
     hats: part({ level: 0.5, ch: 5, dly: 0.2, rev: 0.1, tone: 0.5, decay: 0.3 }),
@@ -280,7 +280,7 @@ const DEFAULTS = {
   },
   delay: { sync: "d8", free: 0.38, feedback: 0.62, hp: 320, lp: 1700, sat: 0.3, wow: 0.25, flutter: 0.15, ping: true, freeze: false, level: 0.7 },
   reverb: { type: "plate", size: 0.6, damp: 0.5, level: 0.55 },
-  master: { dj: 0, sat: 0.25, comp: 0.4, volume: 0.8 },
+  master: { dj: 0, sat: 0.25, comp: 0.4, volume: 0.9 },
   xy: { mode: "delay" },
   midi: { on: false, out: "", in: "", clockOut: true, clockIn: false, micro: "bend", bend: 2, drums: "gm" }
 };
@@ -291,7 +291,7 @@ const PRESETS = {
     style: "onedrop",
     voicing: "auto",
     progression: "i",
-    parts: { kick: { decay: 0.5, punch: 0.35, tone: 0.2 }, bass: { level: 0.9, shape: "sine", filter: 0.3 }, stab: { cutoff: 0.4, res: 0.3, length: 0.18, dly: 0.8, rev: 0.5 }, hats: { level: 0.35 }, rim: { level: 0.6, rev: 0.6 }, noise: { level: 0.6 } },
+    parts: { kick: { decay: 0.5, punch: 0.4, tone: 0.42 }, bass: { level: 0.9, shape: "sine", filter: 0.3, drive: 0.55 }, stab: { cutoff: 0.4, res: 0.3, length: 0.18, dly: 0.8, rev: 0.5 }, hats: { level: 0.35 }, rim: { level: 0.6, rev: 0.6 }, noise: { level: 0.6 } },
     delay: { sync: "d8", feedback: 0.68, lp: 1300, hp: 280, sat: 0.45, wow: 0.35 },
     reverb: { type: "spring", size: 0.55, damp: 0.6, level: 0.6 },
     master: { sat: 0.35 }
@@ -961,7 +961,12 @@ function djFilter(dj) {
   return { hp: dj < 0 ? 20 * Math.pow(2, a * 7.6) : 20, lp: dj > 0 ? 2e4 * Math.pow(2, -a * 7) : 2e4, q: 0.7 + a * 1.6 };
 }
 const clamp$1 = (v, a, b) => Math.min(b, Math.max(a, v));
-const TRIM = { kick: 1, bass: 1, stab: 1, pad: 1, hats: 1, rim: 1, perc: 1, air: 1, noise: 1, siren: 1 };
+const TRIM = { kick: 1, bass: 1, stab: 1.9, pad: 1.6, hats: 1.9, rim: 1.8, perc: 1.6, air: 1.7, noise: 1, siren: 1.5 };
+const bassCurve = (drive) => {
+  const k = 0.6 + drive * 7, o = 0.18 * drive, z = Math.tanh(k * o), n = Math.tanh(k * (1 + o)) - z, c = new Float32Array(2049);
+  for (let i = 0; i < 2049; i++) c[i] = (Math.tanh(k * (i / 1024 - 1 + o)) - z) / n;
+  return c;
+};
 const stabCutoff = (x) => 200 * Math.pow(2, x * 5);
 const delayTime = (S) => clamp$1(S.delay.sync === "free" || !SYNC[S.delay.sync] ? S.delay.free : SYNC[S.delay.sync][1] * 60 / S.tempo, 0.02, 3.8);
 function buildGraph(ctx, { tape = false, audit = null, dynamics = true } = {}) {
@@ -1056,12 +1061,20 @@ function buildGraph(ctx, { tape = false, audit = null, dynamics = true } = {}) {
   B.amp = gain(0);
   B.lp = biq("lowpass", 0.8);
   B.duck = gain(1);
+  B.sh = ctx.createWaveShaper();
+  B.sh.oversample = "2x";
+  B.pre = gain(1.6);
+  B.post = gain(0.3);
+  B.drive = -1;
   B.o1.connect(B.g1);
   B.o2.connect(B.g2);
   B.g1.connect(B.lp);
   B.g2.connect(B.lp);
   B.lp.connect(B.amp);
-  B.amp.connect(B.duck);
+  B.amp.connect(B.pre);
+  B.pre.connect(B.sh);
+  B.sh.connect(B.post);
+  B.post.connect(B.duck);
   B.duck.connect(B.in);
   B.o1.start();
   B.o2.start();
@@ -1103,6 +1116,11 @@ function buildGraph(ctx, { tape = false, audit = null, dynamics = true } = {}) {
     set(B.lp.frequency, snap(70 * Math.pow(2, k.bass.filter * 4.3)));
     const shape = { sine: "sine", triangle: "triangle", saw: "sawtooth", square: "square" }[k.bass.shape] || "sine";
     if (B.o1.type !== shape) B.o1.type = shape;
+    const drive = clamp$1(k.bass.drive == null ? 0.45 : k.bass.drive, 0, 1);
+    if (drive !== B.drive) {
+      B.drive = drive;
+      B.sh.curve = bassCurve(drive);
+    }
     set(B.g1.gain, shape === "sine" ? 0.75 : shape === "triangle" ? 0.7 : 0.35);
     set(X.stab.f.frequency, snap(stabCutoff(k.stab.cutoff)));
     set(X.stab.f.Q, 0.5 + k.stab.res * k.stab.res * 14);
@@ -1156,11 +1174,12 @@ function buildGraph(ctx, { tape = false, audit = null, dynamics = true } = {}) {
     }
     G.pads = [];
   };
-  const env = (peak, t, attack, decay) => {
-    const a = gain(0);
+  const env = (peak, t, attack, decay, floor = 0.02) => {
+    const a = gain(0), p = Math.max(2e-4, peak);
     a.gain.setValueAtTime(1e-4, t);
-    a.gain.exponentialRampToValueAtTime(Math.max(2e-4, peak), t + attack);
-    a.gain.exponentialRampToValueAtTime(1e-4, t + attack + decay);
+    a.gain.exponentialRampToValueAtTime(p, t + attack);
+    a.gain.exponentialRampToValueAtTime(Math.max(1e-4, p * floor), t + attack + decay);
+    a.gain.linearRampToValueAtTime(0, t + attack + decay + 0.02);
     return a;
   };
   const tone = (type, hz, t, end, kind, detune = 0) => {
@@ -1174,13 +1193,13 @@ function buildGraph(ctx, { tape = false, audit = null, dynamics = true } = {}) {
   const V = {
     kick(ev, hz, t, sd, P) {
       const f1 = hz[0], f0 = f1 * (P.punch < 0.5 ? 2 : 4);
-      const sweep = 0.05 + (1 - P.punch) * 0.09, dec = 0.12 + P.decay * 0.75, o = osc("sine"), a = env(0.95 * ev.vel, t, 6e-3, dec);
+      const sweep = 0.05 + (1 - P.punch) * 0.09, dec = 0.12 + P.decay * 0.75, o = osc("sine"), a = env(0.95 * ev.vel, t, 6e-3, dec, 6e-4);
       o.frequency.setValueAtTime(F(f0, "kick"), t);
       o.frequency.exponentialRampToValueAtTime(F(f1, "kick"), t + sweep);
       o.connect(a);
       a.connect(X.kick.in);
       o.start(t);
-      o.stop(t + dec + 0.05);
+      o.stop(t + dec + 0.08);
       if (P.punch > 0.05) {
         const c = noiseSrc(t, 0.01, ev.step), ca = env(0.5 * P.punch * ev.vel, t, 1e-3, 8e-3);
         c.connect(ca);
