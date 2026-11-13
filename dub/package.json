@@ -1,0 +1,16 @@
+{
+  "name": "dub",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Dub — generative dub techno machine. Everything in key and scale.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && vite build --config vite.engine.config.js",
+    "test": "node --test --test-reporter=spec test/*.test.js"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0",
+    "vite-plugin-singlefile": "^2.0.0"
+  }
+}
