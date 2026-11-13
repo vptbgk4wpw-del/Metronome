@@ -1,3 +1,4 @@
 node_modules
 .vite
 renders
+dist/dub-artifact.html

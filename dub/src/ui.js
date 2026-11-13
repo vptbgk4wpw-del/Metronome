@@ -281,7 +281,7 @@ function advTuning() {
 function advMidi() {
   const box = dynamic(h('div', { class: 'grp' }), () => [midi.access ? 1 : 0, midi.outputs().map(o => o.id + o.state).join(), midi.inputs().map(o => o.id + o.state).join(), midi.note, engine.tun.micro].join('|'), () => {
     if (!midi.supported) return h('p', { class: 'note wide', text: 'Web MIDI is not available in this browser. Chrome, Edge and Firefox on a computer have it; Safari and iPhone do not.' });
-    if (!midi.access) return [h('div', { class: 'opts' }, act('Enable MIDI', async () => { try { await midi.enable(); } catch (e) { toast('MIDI was not enabled. ' + (e.message || '')); } refresh(); })),
+    if (!midi.access) return [h('div', { class: 'opts' }, act('Enable MIDI', async () => { try { await midi.enable(); } catch (e) { toast('MIDI was not enabled. If this page is embedded in another one, open dub.html on its own page: embedded views often block MIDI.', 6000); } refresh(); })),
       h('p', { class: 'note wide', text: 'Every part can play from the browser, from a synth on its own MIDI channel, or both. Clock, start and stop are sent along.' })];
     const outs = midi.outputs(), ins = midi.inputs();
     return [
@@ -304,23 +304,35 @@ function advMidi() {
 }
 function advExport() {
   const note = h('p', { class: 'note wide', text: 'The loop is the current phrase with the tail of delay and reverb folded back onto its start, so it repeats without a seam. Stems come as a ZIP, one WAV per part.' });
-  const busy = async (label, fn) => { note.textContent = label; try { await fn(); note.textContent = 'Done.'; } catch (e) { note.textContent = 'Export failed. ' + (e && e.message ? e.message : ''); } };
+  const busy = async (label, fn) => { note.textContent = label; try { await fn(); note.textContent = 'Done.'; } catch (e) { note.textContent = (e && e.message) || 'Export failed.'; } };
   const recBtn = act('Record', async () => {
-    if (recorder) { const r = recorder; recorder = null; refresh(); const f = await r.stop(); download(f.name.replace('dub-take', 'dub-take-' + fileTag()), f.data, f.type); return; }
+    if (recorder) { const r = recorder; recorder = null; refresh(); const f = await r.stop(); try { await download(f.name.replace('dub-take', 'dub-take-' + fileTag()), f.data, f.type); } catch (e) { toast(e.message, 5000); } return; }
     try { await engine.init(); meterSetup(); recorder = startRecording(engine.ctx, engine.output, engine.tape); recT0 = performance.now(); if (!engine.playing) await engine.start(); } catch (e) { toast('Recording could not start. ' + (e.message || '')); }
     refresh();
   });
   recBtnEl = recBtn;
   bind(() => { recBtn.classList.toggle('on', !!recorder); if (!recorder) recBtn.firstChild.textContent = 'Record'; });
   return adv('Export', grp(h('div', { class: 'opts wide' },
-    act('WAV loop', () => busy('Rendering the loop…', async () => { const r = await renderLoop(engine.getState(), { phrase: engine.playing ? engine.phrase : 0 }); download(`dub-${fileTag()}.wav`, encodeWav(r.channels, r.sampleRate, 24), 'audio/wav'); })),
-    act('Stems', () => busy('Rendering stems, one part at a time…', async () => { const st = await renderStems(engine.getState(), { phrase: engine.playing ? engine.phrase : 0 }); download(`dub-${fileTag()}-stems.zip`, zip(st.map(s => ({ name: `${String(PARTS.indexOf(s.part) + 1).padStart(2, '0')}-${s.part}.wav`, data: encodeWav(s.channels, s.sampleRate, 24) }))), 'application/zip'); })),
-    act('MIDI file', () => busy('Writing MIDI…', async () => download(`dub-${fileTag()}.mid`, midiFile(engine.getState(), engine.tun, { phrase: engine.playing ? engine.phrase : 0 }), 'audio/midi'))),
+    act('WAV loop', () => busy('Rendering the loop…', async () => { const r = await renderLoop(engine.getState(), { phrase: engine.playing ? engine.phrase : 0 }); await download(`dub-${fileTag()}.wav`, encodeWav(r.channels, r.sampleRate, 24), 'audio/wav'); })),
+    act('Stems', () => busy('Rendering stems, one part at a time…', async () => { const st = await renderStems(engine.getState(), { phrase: engine.playing ? engine.phrase : 0 }); await download(`dub-${fileTag()}-stems.zip`, zip(st.map(s => ({ name: `${String(PARTS.indexOf(s.part) + 1).padStart(2, '0')}-${s.part}.wav`, data: encodeWav(s.channels, s.sampleRate, 24) }))), 'application/zip'); })),
+    act('MIDI file', () => busy('Writing MIDI…', async () => await download(`dub-${fileTag()}.mid`, midiFile(engine.getState(), engine.tun, { phrase: engine.playing ? engine.phrase : 0 }), 'audio/midi'))),
     recBtn), note));
 }
 let recorder = null, recT0 = 0, recBtnEl = null;
 const fileTag = () => `${KEYS[S().key].replace('♯', 's').replace('♭', 'b')}-${scaleById(S().scale, S().custom).name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Math.round(S().tempo)}bpm-${S().seed}`;
-function download(name, data, type) {
+/* Save a file. On its own page that is an ordinary download. Inside a Claude artifact the page may not
+   download by itself: the viewer is asked to confirm, and only some file types pass, so WAV and MIDI travel in a ZIP. */
+async function download(name, data, type) {
+  const c = window.claude;
+  if (c && typeof c.use === 'function') {
+    const d = await c.use('downloads');
+    if (d) {
+      const isZip = /\.zip$/i.test(name);
+      try { await d.save({ filename: isZip ? name : name.replace(/\.[^.]+$/, '') + '.zip', data: new Blob([isZip ? data : zip([{ name, data }])]) }); }
+      catch (e) { throw new Error(e && e.code === 'declined' ? 'Nothing was saved.' : 'This view could not save the file. Open dub.html on its own page to export.'); }
+      return;
+    }
+  }
   const url = URL.createObjectURL(new Blob([data], { type })), a = h('a', { href: url, download: name });
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
