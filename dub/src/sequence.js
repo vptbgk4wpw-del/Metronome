@@ -8,6 +8,7 @@ import { rng, rand, pick, shuffle } from './prng.js';
 import { PARTS } from './state.js';
 
 export const STEPS = 16;
+export const SWING = 0.4;                         // swing 1 delays every second sixteenth by 0.4 of a step
 
 /* Registers: the lowest frequency a part's tonic may have. Parts name a register, the tuning names the pitch. */
 export const REG = { sub: 41, conga: 185, pad: 110, stab: 165, siren: 440, pluck: 440, rim: 1400, clave: 2000 };

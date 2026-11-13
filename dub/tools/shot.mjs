@@ -1,0 +1,26 @@
+/* Screenshots of the built app and a short live run. node tools/shot.mjs */
+import { open } from './harness.mjs';
+const h = await open({ url: '/dist/dub.html', viewport: { width: 1440, height: 1000 } });
+const p = h.page;
+await p.waitForSelector('.part');
+await p.screenshot({ path: 'renders/ui-desktop.png', fullPage: true });
+await p.keyboard.press('Space');
+await p.waitForTimeout(2600);
+const live = await p.evaluate(() => ({ playing: dub.playing, bar: dub.bar, step: dub.step, tape: dub.tape, state: dub.ctx.state, status: document.querySelector('.head p').textContent, now: document.querySelectorAll('.dots i.now').length, on: document.querySelectorAll('.dots i.on').length }));
+console.log('live', JSON.stringify(live));
+await p.screenshot({ path: 'renders/ui-playing.png' });
+await p.keyboard.press('Space');
+await p.click('.part .more'); await p.click('text=Scale');
+for (const t of ['Pattern and harmony', 'Tuning', 'MIDI', 'Export', 'Keyboard']) await p.click(`summary:has-text("${t}")`);
+await p.click('button:has-text("Hüseyni")');
+await p.waitForTimeout(200);
+await p.screenshot({ path: 'renders/ui-advanced.png', fullPage: true });
+await h.context.close();
+const m = await open({ url: '/dist/dub.html', viewport: { width: 390, height: 844 } });
+await m.page.waitForSelector('.part');
+await m.page.screenshot({ path: 'renders/ui-phone.png', fullPage: false });
+await m.page.evaluate(() => document.querySelector('.parts').scrollIntoView());
+await m.page.screenshot({ path: 'renders/ui-phone-parts.png' });
+const overflow = await m.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+console.log('phone horizontal overflow px', overflow, 'errors', JSON.stringify(h.errors), JSON.stringify(m.errors));
+await m.close(); await h.close();
