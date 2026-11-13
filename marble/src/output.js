@@ -72,7 +72,9 @@ const nextFrame = () => new Promise(r => requestAnimationFrame(() => r()));
 export async function pullPrint(api, opt = {}){
   if (PRINT.busy) return null;
   const long = opt.long || PRINT.sizes[P.printSize][0], k = long / Math.max(S.W, S.H);
-  const PW = Math.round(S.W * k), PH = Math.round(S.H * k), T = opt.tile || 1024, PAD = 16, TP = T + PAD * 2;
+  const PW = Math.round(S.W * k), PH = Math.round(S.H * k), SS = opt.ss || 2, T = opt.tile || 512;
+  // the edge and caustic filters keep their on-screen width, so in print they reach further in texels; the margin follows
+  const reach = MB.ev ? PW * SS / MB.ev.w : SS, PAD = Math.ceil((6 * reach + 4) / SS), TP = (T + PAD * 2) * SS;
   const out = document.createElement('canvas'); out.width = PW; out.height = PH;
   const ctx = out.getContext('2d');
   if (!ctx || out.width !== PW) { toast('This device cannot hold a ' + PW + '×' + PH + ' image.'); return null; }
@@ -81,17 +83,19 @@ export async function pullPrint(api, opt = {}){
   try {
     evA = makeFBO(TP, TP, { mrt:true }); evB = makeFBO(TP, TP, { mrt:true }); sc = makeFBO(TP, TP);
     o8 = makeFBO(T, T, { ifmt:gl.RGBA8, type:gl.UNSIGNED_BYTE, filter:gl.NEAREST });
-    const size = Math.max(PW, PH) * P.zoom * MARGIN, v = { cx:PW / 2, cy:PH / 2, size, w:PW, h:PH };
+    // everything up to the tone curve happens on a virtual image SS times larger, which is then averaged down
+    const size = Math.max(PW, PH) * SS * P.zoom * MARGIN, v = { cx:PW * SS / 2, cy:PH * SS / 2, size, w:PW * SS, h:PH * SS };
     const useHist = !!MB.key && !MB.fx.wet, nh = useHist ? MB.hist.length : 0;
     const n = MB.upload(useHist ? MB.hist : [], MB.ops);
     const px = new Uint8Array(T * T * 4), tiles = Math.ceil(PW / T) * Math.ceil(PH / T); let done = 0;
     for (let oy = 0; oy < PH; oy += T) for (let ox = 0; ox < PW; ox += T) {
-      const win = [0.5 + (ox - PAD - v.cx) / size, 0.5 + (oy - PAD - v.cy) / size, 0.5 + (ox + T + PAD - v.cx) / size, 0.5 + (oy + T + PAD - v.cy) / size];
+      const x0 = (ox - PAD) * SS, y0 = (oy - PAD) * SS;
+      const win = [0.5 + (x0 - v.cx) / size, 0.5 + (y0 - v.cy) / size, 0.5 + (x0 + TP - v.cx) / size, 0.5 + (y0 + TP - v.cy) / size];
       const aa = 0.75 / size;
       run(S.PR.marbEval, evA, MB.evalU(useHist ? MB.key : MB.base.read, n, win, aa, true, 0));
       if (useHist) run(S.PR.marbEval, evB, MB.evalU(MB.base.read, n, win, aa, true, nh));
-      run(S.PR.comp, sc, MB.compU({ dye:evA.tex, mc:(useHist ? evB : evA).tex2, texel:evA.texel }, win, v, [ox - PAD, oy - PAD], PW / innerWidth));
-      run(S.PR.printFinal, o8, { uScene:sc.tex, uBloom:S.bloom[0].tex, uOrigin:[ox, oy], uFull:[PW, PH], uPad:[PAD, PAD], uGlow:P.glow, uHal:P.halation,
+      run(S.PR.comp, sc, MB.compU({ dye:evA.tex, mc:(useHist ? evB : evA).tex2 }, win, v, [x0, y0], PW * SS / innerWidth, [reach / TP, reach / TP]));
+      run(S.PR.printFinal, o8, { uScene:sc.tex, uBloom:S.bloom[0].tex, uOrigin:[ox, oy], uFull:[PW, PH], uPad:[PAD, PAD], uSS:{ i:SS }, uGlow:P.glow, uHal:P.halation,
         uGrain:P.grain, uGrainSize:P.grainSize * Math.max(1, PW / 1920), uExposure:P.exposure * S.bal.autoExp, uSat:P.sat });
       const tw = Math.min(T, PW - ox), th = Math.min(T, PH - oy);
       gl.readPixels(0, 0, tw, th, gl.RGBA, gl.UNSIGNED_BYTE, px);
@@ -99,7 +103,7 @@ export async function pullPrint(api, opt = {}){
       for (let y = 0; y < th; y++) img.data.set(px.subarray(y * tw * 4, (y + 1) * tw * 4), (th - 1 - y) * tw * 4);
       ctx.putImageData(img, ox, PH - oy - th);
       done++; toast('Pulling the print… ' + Math.round(done / tiles * 100) + '%', 4000);
-      if (done % 2 === 0) await nextFrame();
+      if (done % 4 === 0) await nextFrame();
     }
     blob = await new Promise(r => out.toBlob(r, 'image/png'));
     if (!blob) toast('The print could not be encoded at this size.');

@@ -10,14 +10,16 @@ import { MB } from './engine.js';
 import { psrdGrad } from './noise.js';
 import { WET } from './fx.js';
 
-/* per band: number of vents, bubble radius at the softest and loudest hit, growth time, breathing reach and depth */
+/* per band: number of vents, bubble radius at the softest and loudest hit, growth time, breathing reach and depth,
+   the loudness a hit needs before it may leave a bubble (a kick has to be a real kick, not the edge of a bass note),
+   and the share of vents that answer in sparse and in busy music */
 const SPEC = [
-  { n:3, r:[0.028, 0.07], dur:[1.5, 1.0], rho:0.13, amp:0.42, gap:0.18 },
-  { n:4, r:[0.013, 0.032], dur:[0.6, 0.45], rho:0.075, amp:0.36, gap:0.12 },
-  { n:6, r:[0.005, 0.012], dur:[0.26, 0.18], rho:0.04, amp:0.3, gap:0.07 },
+  { n:3, r:[0.028, 0.07], dur:[1.5, 1.0], rho:0.13, amp:0.42, gap:0.18, min:0.35, frac:[0.34, 0.67] },
+  { n:4, r:[0.013, 0.032], dur:[0.6, 0.45], rho:0.075, amp:0.36, gap:0.12, min:0.12, frac:[0.25, 0.75] },
+  { n:6, r:[0.005, 0.012], dur:[0.26, 0.18], rho:0.04, amp:0.3, gap:0.07, min:0.12, frac:[0.17, 0.67] },
 ];
 export const BUB = {
-  vents:[], seen:[0, 0, 0], pend:[null, null, null], count:[0, 0, 0], area:[0, 0, 0],
+  vents:[], tokens:6, seen:[0, 0, 0], pend:[null, null, null], count:[0, 0, 0], area:[0, 0, 0],
   init(){
     this.vents = [];
     SPEC.forEach((sp, band) => { for (let i = 0; i < sp.n; i++) this.vents.push({ band, x:rnd(0.3, 0.7), y:rnd(0.3, 0.7), sel:false, amp:0, last:-9, seed:rnd(0, 50), cyc:[], ci:0 }); });
@@ -30,6 +32,7 @@ export const BUB = {
   emit(v, L){
     const sp = SPEC[v.band];
     if (MB.rclock - v.last < sp.gap) return;
+    if (v.band > 0) { if (this.tokens < 1) return; this.tokens--; }      // small bubbles share a budget, so a busy mix cannot flood the stack
     if (MB.ops.reduce((n, o) => n + (o.live && o.rt ? 1 : 0), 0) > 34) return;
     if (!v.cyc.length || v.ci >= v.cyc.length) { if (!v.cyc.length || Math.random() < 0.35) this.cycle(v); v.ci = 0; }
     const R = Math.min(0.16, mixf(sp.r[0], sp.r[1], L) * P.mSize * Math.pow(P.scale, 0.7));
@@ -40,11 +43,11 @@ export const BUB = {
   /* a hit of one band: pick the vents that answer. Few when the music is sparse, all of them when it is busy. */
   hit(band, L){
     const mine = this.vents.filter(v => v.band === band);
-    const m = clamp(Math.round(mine.length * mixf(0.3, 1, AU.activity)), 1, mine.length);
+    const sp = SPEC[band], m = clamp(Math.round(mine.length * mixf(sp.frac[0], sp.frac[1], AU.activity)), 1, mine.length);
     mine.forEach(v => { v.sel = false; });
     const pool = mine.slice();
     for (let i = 0; i < m; i++) pool.splice((Math.random() * pool.length) | 0, 1)[0].sel = true;
-    if (Math.random() < P.bubbling) for (const v of mine) if (v.sel) this.emit(v, L);
+    if (L >= sp.min && Math.random() < P.bubbling) for (const v of mine) if (v.sel) this.emit(v, L);
   },
   update(rdt){
     const w = viewWin(), cx = (w[0] + w[2]) / 2, cy = (w[1] + w[3]) / 2, hx = (w[2] - w[0]) * 0.44, hy = (w[3] - w[1]) * 0.42;
@@ -57,6 +60,7 @@ export const BUB = {
       if (Math.abs(ey) > 0.8) v.y -= Math.sign(ey) * (Math.abs(ey) - 0.8) * hy * Math.min(1, rdt * 4);
       v.x = clamp(v.x, cx - hx, cx + hx); v.y = clamp(v.y, cy - hy, cy + hy);
     }
+    this.tokens = Math.min(6, this.tokens + rdt * 7);
     for (let b = 0; b < 3; b++) {
       const s = AU.b[b];
       if (s.hits !== this.seen[b]) { this.seen[b] = s.hits; if (!this.pend[b]) this.pend[b] = { t:0, L:0 }; }

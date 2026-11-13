@@ -155,10 +155,10 @@ export const MB = {
       if (this.fx.wet || this.hist.length > HIST_MAX - 60) { run(S.PR.copy, this.key, { uSrc:this.base.read.tex }); this.hist = []; }
     }
   },
-  compU(ev, win, v, origin, px){
+  compU(ev, win, v, origin, px, tap){
     const pal = PAL(), fx = this.fx, cssMax = Math.max(innerWidth, innerHeight);
     return { uEv:ev.dye, uEvMc:ev.mc, uGall:P.gall > 0 && fx.gall ? fx.gall() : this.dummy.tex, uLut:{ t3:lutFor(pal) }, uLutN:LUT_N,
-      uCenter:[v.cx, v.cy], uOrigin:origin, uETexel:ev.texel, uWin:win, uSize:v.size, uHalf:0.5 * Math.hypot(v.w, v.h), uPx:px, uGrainF:cssMax * MARGIN / 2.6,
+      uCenter:[v.cx, v.cy], uOrigin:origin, uTap:tap, uWin:win, uSize:v.size, uHalf:0.5 * Math.hypot(v.w, v.h), uPx:px, uGrainF:cssMax * MARGIN / 2.6,
       uLamp:pal.lampL, uBath:pal.bathL, uAbs:{ v3:pal.absF }, uMixKM:P.mixKM, uDyeDen:P.dyeDensity, uHot:P.hot, uLens:P.lens, uCaustic:P.caustic,
       uEdge:P.mEdge, uGran:P.gran, uStreak:P.streak, uPaper:P.paper, uGallK:P.gall > 0 && fx.gall ? P.gall : 0 };
   },
@@ -170,7 +170,7 @@ export const MB = {
     const n = this.upload(this.ops);
     const aa = Math.max((win[2] - win[0]) / tw, (win[3] - win[1]) / th) * 0.75;
     run(S.PR.marbEval, this.ev, this.evalU(this.base.read, n, win, aa, true));
-    run(S.PR.comp, target, this.compU({ dye:this.ev.tex, mc:this.ev.tex2, texel:this.ev.texel }, win, v, [0, 0], S.W / innerWidth));
+    run(S.PR.comp, target, this.compU({ dye:this.ev.tex, mc:this.ev.tex2 }, win, v, [0, 0], S.W / innerWidth, this.ev.texel));
   },
   event(){
     const [x, y] = randInView(-0.08);

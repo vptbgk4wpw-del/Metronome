@@ -95,7 +95,7 @@ void main(){
     }
     if (se > 1e-30) { float f = -log(se) / 5.0; p -= dir / se * (amp / se) * f * exp(-f * f); }
   }
-  vec4 acc = vec4(0.0); float w = 1.0; vec2 mc = vec2(0.0); bool got = false;
+  vec4 acc = vec4(0.0); float w = 1.0, gain = 1.0; vec2 mc = vec2(0.0); bool got = false;
   for (int i = uN - 1; i >= uN0; i--) {
     vec4 a = texelFetch(uOps, ivec2(2 * i, 0), 0), b = texelFetch(uOps, ivec2(2 * i + 1, 0), 0);
     int ty = int(a.x + 0.5);
@@ -105,7 +105,7 @@ void main(){
       float cov = clamp((r - L) / uAA * 0.5 + 0.5, 0.0, 1.0);
       if (cov > 0.0) {
         if (!got && cov >= 0.5) { got = true; mc = d + a.yz * 3.7 + 1.3; }
-        acc += w * cov * b; w *= 1.0 - cov; if (w < 0.004) break;
+        acc += w * cov * b * gain; w *= 1.0 - cov; if (w < 0.004) break;
       }
       p = a.yz + d * sqrt(max(0.0, 1.0 - r * r / max(L2, 1e-12)));
     } else if (ty == 1) {                // tine comb: shift along M, decaying with distance to the nearest tine
@@ -122,15 +122,16 @@ void main(){
       vec2 mv = b.xy, s0 = a.yz - mv; float r2 = a.w * a.w, mm = max(dot(mv, mv), 1e-12); vec2 q2 = p;
       for (int k = 0; k < 3; k++) { vec2 pa = q2 - s0; vec2 dv = pa - mv * clamp(dot(pa, mv) / mm, 0.0, 1.0); q2 = p - mv * b.z * exp(-dot(dv, dv) / r2); }
       p = q2;
-    } else {                             // ripple: bands pressed together and pulled apart along N (Spanish wave)
-      vec2 N = a.yz; float s0 = dot(p, N), q = s0;
-      for (int k = 0; k < 3; k++) q = s0 - a.w * sin(b.x * q + b.y);
+    } else {                             // ripple: bands pressed together and pulled apart along N (Spanish wave).
+      vec2 N = a.yz; float s0 = dot(p, N), q = s0;   // Pressed paint lies denser, stretched paint thinner: that is the shading.
+      for (int k = 0; k < 4; k++) q = s0 - a.w * sin(b.x * q + b.y);
       p += N * (q - s0);
+      gain /= max(0.35, 1.0 + a.w * b.x * cos(b.x * q + b.y));
     }
   }
   if (uWet > 0.0) p += texture(uDisp, p).xy;
   if (!got) mc = decMc(texture(uMcBase, p));
-  if (w > 0.004) acc += w * sampleBase(p);
+  if (w > 0.004) acc += w * sampleBase(p) * gain;
   o = acc; oMc = encMc(mc);
 }`,
 initBase: HEAD2 + MC + `
@@ -143,14 +144,14 @@ void main(){ o = texture(uSrc, vUv); }`,
    Glass: transparent dye, light passes through and gets darker as dye piles up (Beer-Lambert). */
 comp: HEAD + NOISE + MC + `
 uniform sampler2D uEv, uEvMc, uGall; uniform sampler3D uLut;
-uniform vec2 uCenter, uOrigin, uETexel; uniform vec4 uWin; uniform float uSize, uHalf, uPx, uGrainF, uLutN;
+uniform vec2 uCenter, uOrigin, uTap; uniform vec4 uWin; uniform float uSize, uHalf, uPx, uGrainF, uLutN;
 uniform vec3 uLamp, uBath; uniform vec3 uAbs[4];
 uniform float uMixKM, uDyeDen, uHot, uLens, uCaustic, uEdge, uGran, uStreak, uPaper, uGallK;
 void main(){
   vec2 fc = gl_FragCoord.xy + uOrigin;
   vec2 suv = (fc - uCenter) / uSize + 0.5;
   const vec4 one = vec4(1.0);
-  vec2 w = (suv - uWin.xy) / (uWin.zw - uWin.xy), e = uETexel * 1.25, E = uETexel * 6.0;
+  vec2 w = (suv - uWin.xy) / (uWin.zw - uWin.xy), e = uTap * 1.25, E = uTap * 6.0;   // uTap: one texel of the live evaluation, at any output size
   vec4 c0 = texture(uEv, w);
   vec4 cl = texture(uEv, w - vec2(e.x, 0.0)), cr = texture(uEv, w + vec2(e.x, 0.0)), cb = texture(uEv, w - vec2(0.0, e.y)), ct = texture(uEv, w + vec2(0.0, e.y));
   float Cl = dot(texture(uEv, w - vec2(E.x, 0.0)), one), Cr = dot(texture(uEv, w + vec2(E.x, 0.0)), one);
@@ -160,7 +161,7 @@ void main(){
   float lap = Cl + Cr + Cb + Ct - 4.0 * C0;
   float edge = 0.5 * (length(cr - cl) + length(ct - cb));
   float line = smoothstep(0.05, 0.45, edge) * uEdge;
-  vec4 c = max(texture(uEv, w - g * uLens * 0.012 / max(uWin.z - uWin.x, 0.05)), 0.0);
+  vec4 c = max(texture(uEv, w - g * uLens * 0.012 / max(uWin.z - uWin.x, 1e-4)), 0.0);
   float C = dot(c, one);
 
   /* texture: paper fibres stay with the sheet, streaks are noise in material space, so every comb pull
@@ -333,10 +334,12 @@ void main(){
 }`,
 /* print: one padded tile of the re-rendered scene, plus the live glow (low-frequency, so it scales cleanly) */
 printFinal: HEAD + NOISE + TONE + `
-uniform sampler2D uScene, uBloom; uniform vec2 uOrigin, uFull, uPad; uniform float uGlow, uHal, uGrain, uGrainSize, uExposure, uSat;
+uniform sampler2D uScene, uBloom; uniform vec2 uOrigin, uFull, uPad; uniform int uSS; uniform float uGlow, uHal, uGrain, uGrainSize, uExposure, uSat;
 void main(){
-  vec2 fc = gl_FragCoord.xy;
-  vec3 col = texelFetch(uScene, ivec2(fc + uPad), 0).rgb;
+  vec2 fc = gl_FragCoord.xy; ivec2 b = ivec2(fc + uPad) * uSS;
+  vec3 col = vec3(0.0);                  // the tile was rendered uSS times larger; average it down before tone mapping
+  for (int j = 0; j < uSS; j++) for (int i = 0; i < uSS; i++) col += texelFetch(uScene, b + ivec2(i, j), 0).rgb;
+  col /= float(uSS * uSS);
   vec3 bl = texture(uBloom, (fc + uOrigin) / uFull).rgb;
   col += bl * uGlow * 1.4 + vec3(1.0, 0.3, 0.1) * dot(bl, vec3(0.3, 0.5, 0.2)) * uHal * 1.2;
   o = vec4(tone(col, uExposure, uSat, floor((fc + uOrigin) / uGrainSize), uGrain), 1.0);

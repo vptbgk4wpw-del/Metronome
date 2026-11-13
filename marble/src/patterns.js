@@ -7,27 +7,29 @@ import { MB } from './engine.js';
 const geo = () => { const w = viewWin(); return { x0:w[0], y0:w[1], x1:w[2], y1:w[3], ww:w[2] - w[0], hh:w[3] - w[1], k:Math.pow(P.scale, 0.5) }; };
 const comb = (t, nx, ny, A, sp, off, c, dur = 0.75) => MB.later(t, () => MB.comb({ nx, ny, A, sp, off, c, dur, rt:true }));
 
-/* Stone (battal): pigment thrown from the brush, large drops first, then a rain of small ones and a few of clear gall */
-function stone(t0 = 0, span = 2.2, n = 46){
-  const g = geo();
+/* Stone (battal): pigment thrown from the brush, large drops first, then a rain of small ones and a few of clear gall.
+   The drops together hold a little more paint than the sheet has room for, so the ground closes up. */
+function stone(t0 = 0, span = 2.2, fill = 1.6){
+  const g = geo(), area = (g.ww + 0.08) * (g.hh + 0.08) * fill, n = Math.round(64 / (g.k * g.k));
+  const rs = Math.sqrt(area / (1.9 * n * Math.PI));
   for (let i = 0; i < n; i++) {
-    const big = i < n * 0.3, R = (big ? rnd(0.05, 0.085) : rnd(0.016, 0.04)) * g.k * (g.ww / 0.9);
+    const big = i < n * 0.3, R = (big ? 2 : 1) * rs * rnd(0.8, 1.2);
     MB.later(t0 + span * (i / n) * rnd(0.85, 1), () => {
       const x = rnd(g.x0 - 0.04, g.x1 + 0.04), y = rnd(g.y0 - 0.04, g.y1 + 0.04);
-      const dye = i < 4 ? dyeVec(i, 1) : (!big && Math.random() < 0.14 ? [0, 0, 0, 0] : MB.dye());
+      const dye = i < 4 ? dyeVec(i, 1) : (!big && Math.random() < 0.12 ? [0, 0, 0, 0] : MB.dye());
       MB.drop(x, y, R, dye, { dur:rnd(0.35, 0.6), rt:true });
     });
   }
   return t0 + span + 0.5;
 }
-function ground(){ return !S.bal.ok || S.bal.dye < 0.45 ? stone(0, 1.2, 40) : 0; }
+function ground(){ return !S.bal.ok || S.bal.dye < 0.5 ? stone(0, 1.3, 1.5) : 0; }
 
 /* Gel-git ("come and go"): a wide comb up, then down between the first lines; the same again across */
 function gelgit(t, g, both = true, dur = 0.75){
   const sp = g.ww / 7 * g.k, A = g.hh * 0.42;
   comb(t, 1, 0, A, sp, g.x0, sp * 0.3, dur); comb(t + dur, 1, 0, -A, sp, g.x0 + sp / 2, sp * 0.3, dur);
   if (!both) return t + dur * 2;
-  const sp2 = sp * 0.9, B = g.ww * 0.2;
+  const sp2 = sp * 1.3, B = g.ww * 0.09;
   comb(t + dur * 2, 0, 1, B, sp2, g.y0, sp2 * 0.3, dur); comb(t + dur * 3, 0, 1, -B, sp2, g.y0 + sp2 / 2, sp2 * 0.3, dur);
   return t + dur * 4;
 }
@@ -65,7 +67,7 @@ export const PATTERNS = [
     const lam = g.ww / 9 * g.k, fr = 6.283 / lam, ang = 0.5;
     const rip = (at, a, f, k, dur) => MB.later(at, () => MB.push({ ty:5, nx:Math.cos(a), ny:Math.sin(a), amp:0, A:k / f, fr:f, phs:rnd(0, 6.283), t:0, dur, live:true, rt:true }));
     MB.later(t, () => MB.push({ ty:3, nx:Math.cos(ang + 1.57), ny:Math.sin(ang + 1.57), amp:0, A:lam * 0.35, fr:6.283 / (g.ww / 2.2), phs:rnd(0, 6.283), t:0, dur:1.4, live:true, rt:true }));
-    rip(t + 0.5, ang, fr, 0.8, 1.6); rip(t + 1.3, ang - 0.38, fr * 1.13, 0.5, 1.5);
+    rip(t + 0.5, ang, fr, 0.6, 1.6); rip(t + 1.3, ang - 0.38, fr * 1.13, 0.35, 1.5);
   } },
   /* French curl (snail): a grid of small whirls, each wound up by a stylus */
   { id:'curl', name:'French curl', run(){
