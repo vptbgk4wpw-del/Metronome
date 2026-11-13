@@ -34,7 +34,7 @@ export function planNote(e, P, cfg, micro, rot = {}) {
   // unpitched noise sent "in key" rings the tonic, in an octave of its own per sound
   const notes = e.notes.length ? e.notes : (e.tonic ? [{ note: e.tonic.note + ({ closed: 24, open: 24, shaker: 12, air: 36 }[e.kind] || 0), cents: e.tonic.cents }] : []);
   if (e.kind === 'siren') { const iv = e.sd / (e.rate || 1); for (let k = 0; k * iv < e.dur; k++) note(k * iv, notes[k % 2], iv * 0.9); }
-  else if (e.kind === 'zap') note(0, notes[0], 0.14);
+  else if (e.kind === 'swell') note(0, notes[0], e.dur);
   else { const dur = GM[e.kind] != null ? 0.08 : Math.max(0.03, e.dur * (poly ? 1 : 0.95)); for (const m of notes) note(0, m, e.part === 'stab' ? Math.max(0.05, P.length) : dur); }
   return out;
 }

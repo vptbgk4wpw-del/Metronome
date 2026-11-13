@@ -84,7 +84,7 @@ export function buildGraph(ctx, { tape = false, audit = null, dynamics = true } 
     set(X.stab.f.Q, 0.5 + k.stab.res * k.stab.res * 14);
     set(lfo.frequency, clamp(k.stab.lfoRate, 0.005, 12)); set(lfoG.gain, k.stab.lfoDepth * 2400);
     set(X.hats.hp.frequency, snap(3000 * Math.pow(2, k.hats.tone * 1.8)));
-    set(X.air.hp.frequency, snap(11500)); set(X.siren.lp.frequency, snap(2600));
+    set(X.air.hp.frequency, snap(11500)); set(X.siren.lp.frequency, snap(700 * Math.pow(2, (k.siren.tone == null ? 0.55 : k.siren.tone) * 3)));
     set(N.hissF.frequency, snap(4200)); set(N.crF.frequency, snap(1000));
     set(N.crG.gain, k.noise.density * 0.5); set(N.hissG.gain, 0.05);
     const d = S.delay;
@@ -176,19 +176,28 @@ export function buildGraph(ctx, { tape = false, audit = null, dynamics = true } 
       cf.frequency.setValueAtTime(snap(hz[0] * 4), t); c.connect(cf); cf.connect(ca); ca.connect(X.perc.in);
     },
     air(ev, hz, t) { const dec = 0.03 + 0.05 * ev.vel, a = env(0.8 * ev.vel, t, 0.001, dec); noiseSrc(t, dec, ev.step + 17).connect(a); a.connect(X.air.in); },
+    /* A slow, soft siren: a triangle that leans from one scale tone to the other and back, far in the mix. */
     siren(ev, hz, t, sd) {
-      const dur = ev.len * sd, iv = sd / (ev.rate || 1), o = osc('square'), a = gain(0);
+      const dur = ev.len * sd, iv = sd / (ev.rate || 0.5), o = osc('triangle'), a = gain(0);
       o.frequency.setValueAtTime(F(hz[0], 'siren'), t); F(hz[1], 'siren');
-      for (let k = 1; k * iv < dur; k++) o.frequency.setTargetAtTime(hz[k % 2], t + k * iv, iv * 0.2);     // glides between two scale tones
-      a.gain.setValueAtTime(0, t); a.gain.linearRampToValueAtTime(0.2 * ev.vel, t + 0.02); a.gain.setTargetAtTime(0, t + dur, 0.03);
-      o.connect(a); a.connect(X.siren.in); o.start(t); o.stop(t + dur + 0.3);
+      for (let k = 1; k * iv < dur; k++) o.frequency.setTargetAtTime(hz[k % 2], t + k * iv, iv * 0.3);
+      a.gain.setValueAtTime(0, t); a.gain.linearRampToValueAtTime(0.35 * ev.vel, t + Math.min(0.25, dur * 0.3)); a.gain.setTargetAtTime(0, t + dur * 0.8, dur * 0.12);
+      o.connect(a); a.connect(X.siren.in); o.start(t); o.stop(t + dur * 1.6 + 0.2);
     },
-    zap(ev, hz, t) {
-      const o = osc('sine'), a = env(0.4 * ev.vel, t, 0.002, 0.25);
-      o.frequency.setValueAtTime(F(hz[0], 'zap'), t); o.frequency.exponentialRampToValueAtTime(F(hz[1], 'zap'), t + 0.14);
-      o.connect(a); a.connect(X.siren.in); o.start(t); o.stop(t + 0.3);
+    /* Swell: noise through two narrow resonances on scale tones, rising into the bar line and cut there. */
+    swell(ev, hz, t, sd) {
+      const dur = Math.max(0.2, ev.len * sd), a = gain(0), n = noiseSrc(t, dur + 0.1, ev.step + 19);
+      n.loop = true;
+      a.gain.setValueAtTime(0.004, t); a.gain.exponentialRampToValueAtTime(3.4 * ev.vel, t + dur); a.gain.setTargetAtTime(0, t + dur, 0.025);
+      hz.forEach((f, i) => { const bp = biq('bandpass', 9); bp.frequency.setValueAtTime(F(f, 'swell'), t); const g = gain(i ? 0.6 : 1); n.connect(bp); bp.connect(g); g.connect(a); });
+      a.connect(X.siren.in); n.stop(t + dur + 0.3);
     },
-    pluck(ev, hz, t) { const a = env(0.4 * ev.vel, t, 0.002, 0.3); tone('triangle', hz[0], t, t + 0.35, 'pluck').connect(a); a.connect(X.siren.in); },
+    /* Bell: a sine with a quieter octave above it, long enough for the delay to catch. */
+    bell(ev, hz, t) {
+      const a = env(0.55 * ev.vel, t, 0.003, 0.7, 0.01), b = env(0.12 * ev.vel, t, 0.002, 0.25, 0.01);
+      tone('sine', hz[0], t, t + 0.75, 'bell').connect(a); tone('sine', hz[0] * 2, t, t + 0.3, 'bell').connect(b);
+      a.connect(X.siren.in); b.connect(X.siren.in);
+    },
   };
   /* Play one event. hz: its pitches, already resolved by the tuning. sd: seconds per sixteenth. */
   G.play = (ev, hz, t, sd, S) => { const v = V[ev.kind]; if (v) v(ev, hz, t, sd, S.parts[ev.part]); };

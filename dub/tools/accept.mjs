@@ -157,7 +157,7 @@ if (on('live') || on('midi') || on('soak')) {
     check('7a MIDI clock: 24 ticks per beat at the engine tempo, Start first, Stop last', first.data[0] === 0xFA && last.data[0] === 0xFC && Math.abs(mean - 60000 / 120 / 24) < 0.01 && dev < 0.5, `${clock.length} ticks, mean interval ${mean.toFixed(3)} ms (expected ${(60000 / 120 / 24).toFixed(3)}), worst deviation ${dev.toFixed(3)} ms`);
     const ons = r.sent.filter(m => (m.data[0] & 0xF0) === 0x90); let matched = 0, total = 0, worstMs = 0, wrongCh = 0;
     for (const e of r.notes) {
-      if (e.kind === 'siren' || e.kind === 'zap') continue;
+      if (e.kind === 'siren' || e.kind === 'swell') continue;
       const lo = r.chans[e.part] - 1, hi = e.part === 'stab' ? lo + 5 : lo;
       const expect = e.part === 'kick' ? [36] : e.notes.map(n => n.note);
       for (const key of expect) { total++; const m = ons.find(o => o.data[1] === key && Math.abs(o.ts - e.ts) < 0.5 && (o.data[0] & 15) >= lo && (o.data[0] & 15) <= hi); if (m) { matched++; worstMs = Math.max(worstMs, Math.abs(m.ts - e.ts)); } else wrongCh++; }

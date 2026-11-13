@@ -29,7 +29,7 @@ export const DEFAULTS = {
     perc:  part({ level: 0.45, ch: 7, dly: 0.2, rev: 0.25, density: 0.5 }),
     air:   part({ level: 0.4, ch: 8, dly: 0.3, rev: 0.2, density: 0.5 }),
     noise: part({ level: 0.45, ch: 0, rev: 0.1, density: 0.5, variation: 0 }),
-    siren: part({ level: 0.45, ch: 9, dly: 0.8, rev: 0.4, density: 0.5, variation: 0.6 }),
+    siren: part({ level: 0.45, ch: 9, dly: 0.8, rev: 0.5, density: 0.5, variation: 0.6, fx: 'mix', tone: 0.55 }),
   },
   delay: { sync: 'd8', free: 0.38, feedback: 0.62, hp: 320, lp: 1700, sat: 0.3, wow: 0.25, flutter: 0.15, ping: true, freeze: false, level: 0.7 },
   reverb: { type: 'plate', size: 0.6, damp: 0.5, level: 0.55 },

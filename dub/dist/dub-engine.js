@@ -276,7 +276,7 @@ const DEFAULTS = {
     perc: part({ level: 0.45, ch: 7, dly: 0.2, rev: 0.25, density: 0.5 }),
     air: part({ level: 0.4, ch: 8, dly: 0.3, rev: 0.2, density: 0.5 }),
     noise: part({ level: 0.45, ch: 0, rev: 0.1, density: 0.5, variation: 0 }),
-    siren: part({ level: 0.45, ch: 9, dly: 0.8, rev: 0.4, density: 0.5, variation: 0.6 })
+    siren: part({ level: 0.45, ch: 9, dly: 0.8, rev: 0.5, density: 0.5, variation: 0.6, fx: "mix", tone: 0.55 })
   },
   delay: { sync: "d8", free: 0.38, feedback: 0.62, hp: 320, lp: 1700, sat: 0.3, wow: 0.25, flutter: 0.15, ping: true, freeze: false, level: 0.7 },
   reverb: { type: "plate", size: 0.6, damp: 0.5, level: 0.55 },
@@ -635,18 +635,20 @@ function genAir(c) {
 function genSiren(c) {
   const { tun, n } = c, v = c.V("fx");
   const oct = tun.registerOct(REG.siren), fifth = tun.fifthOf(0);
+  const pool = { swell: ["swell"], bells: ["bells"], siren: ["siren"] }[c.S.parts.siren.fx] || ["swell", "bells", "swell", "siren", "bells"];
   const out = c.each(() => []);
   const place = (bar, rankBase) => {
-    const type = pick(v, ["siren", "fragment", "zap", "siren"]);
+    const type = pick(v, pool);
     if (type === "siren") {
-      const other = v() < 0.6 ? { deg: fifth, oct } : { deg: tun.step(2), oct };
-      out[bar].push(H(pick(v, [4, 8, 10]), rankBase, 0.75, 0.8, { kind: "siren", len: pick(v, [4, 6]), rate: pick(v, [1, 2, 0.5]), notes: [{ deg: n, oct }, other] }));
-    } else if (type === "zap") {
-      out[bar].push(H(pick(v, [7, 11, 15]), rankBase, 0.75, 0.8, { kind: "zap", notes: [{ deg: n, oct: oct + 1 }, { deg: 0, oct }] }));
+      const other = v() < 0.6 ? { deg: fifth, oct: oct - 1 } : { deg: tun.step(2), oct: oct - 1 };
+      out[bar].push(H(pick(v, [4, 8]), rankBase, 0.75, 0.8, { kind: "siren", len: pick(v, [6, 8]), rate: pick(v, [0.5, 0.25]), notes: [{ deg: 0, oct: oct - 1 }, other] }));
+    } else if (type === "swell") {
+      const from = pick(v, [8, 8, 12]);
+      out[bar].push(H(from, rankBase, 0.8, 0.8, { kind: "swell", len: STEPS - from, notes: [{ deg: 0, oct: oct + 1 }, { deg: fifth, oct: oct + 1 }] }));
     } else {
       const walk = pick(v, [[4, 2, 0], [0, 2, 4], [7, 4, 2], [2, 1, 0], [-1, 0, 2]]).map((h) => tun.step(h));
       const s0 = pick(v, [2, 6, 8]);
-      walk.forEach((deg, i) => out[bar].push(H(s0 + i * 3, rankBase + i * 0.08, 0.85, 0.75 - i * 0.1, { kind: "pluck", len: 2, notes: [{ deg, oct }] })));
+      walk.forEach((deg, i) => out[bar].push(H(s0 + i * 3, rankBase + i * 0.08, 0.85, 0.75 - i * 0.1, { kind: "bell", len: 3, notes: [{ deg, oct }] })));
     }
   };
   place(c.bars - 1, 0.2);
@@ -1128,7 +1130,7 @@ function buildGraph(ctx, { tape = false, audit = null, dynamics = true } = {}) {
     set(lfoG.gain, k.stab.lfoDepth * 2400);
     set(X.hats.hp.frequency, snap(3e3 * Math.pow(2, k.hats.tone * 1.8)));
     set(X.air.hp.frequency, snap(11500));
-    set(X.siren.lp.frequency, snap(2600));
+    set(X.siren.lp.frequency, snap(700 * Math.pow(2, (k.siren.tone == null ? 0.55 : k.siren.tone) * 3)));
     set(N.hissF.frequency, snap(4200));
     set(N.crF.frequency, snap(1e3));
     set(N.crG.gain, k.noise.density * 0.5);
@@ -1301,32 +1303,45 @@ function buildGraph(ctx, { tape = false, audit = null, dynamics = true } = {}) {
       noiseSrc(t, dec, ev.step + 17).connect(a);
       a.connect(X.air.in);
     },
+    /* A slow, soft siren: a triangle that leans from one scale tone to the other and back, far in the mix. */
     siren(ev, hz, t, sd) {
-      const dur = ev.len * sd, iv = sd / (ev.rate || 1), o = osc("square"), a = gain(0);
+      const dur = ev.len * sd, iv = sd / (ev.rate || 0.5), o = osc("triangle"), a = gain(0);
       o.frequency.setValueAtTime(F(hz[0], "siren"), t);
       F(hz[1], "siren");
-      for (let k = 1; k * iv < dur; k++) o.frequency.setTargetAtTime(hz[k % 2], t + k * iv, iv * 0.2);
+      for (let k = 1; k * iv < dur; k++) o.frequency.setTargetAtTime(hz[k % 2], t + k * iv, iv * 0.3);
       a.gain.setValueAtTime(0, t);
-      a.gain.linearRampToValueAtTime(0.2 * ev.vel, t + 0.02);
-      a.gain.setTargetAtTime(0, t + dur, 0.03);
+      a.gain.linearRampToValueAtTime(0.35 * ev.vel, t + Math.min(0.25, dur * 0.3));
+      a.gain.setTargetAtTime(0, t + dur * 0.8, dur * 0.12);
       o.connect(a);
       a.connect(X.siren.in);
       o.start(t);
-      o.stop(t + dur + 0.3);
+      o.stop(t + dur * 1.6 + 0.2);
     },
-    zap(ev, hz, t) {
-      const o = osc("sine"), a = env(0.4 * ev.vel, t, 2e-3, 0.25);
-      o.frequency.setValueAtTime(F(hz[0], "zap"), t);
-      o.frequency.exponentialRampToValueAtTime(F(hz[1], "zap"), t + 0.14);
-      o.connect(a);
+    /* Swell: noise through two narrow resonances on scale tones, rising into the bar line and cut there. */
+    swell(ev, hz, t, sd) {
+      const dur = Math.max(0.2, ev.len * sd), a = gain(0), n = noiseSrc(t, dur + 0.1, ev.step + 19);
+      n.loop = true;
+      a.gain.setValueAtTime(4e-3, t);
+      a.gain.exponentialRampToValueAtTime(3.4 * ev.vel, t + dur);
+      a.gain.setTargetAtTime(0, t + dur, 0.025);
+      hz.forEach((f, i) => {
+        const bp = biq("bandpass", 9);
+        bp.frequency.setValueAtTime(F(f, "swell"), t);
+        const g = gain(i ? 0.6 : 1);
+        n.connect(bp);
+        bp.connect(g);
+        g.connect(a);
+      });
       a.connect(X.siren.in);
-      o.start(t);
-      o.stop(t + 0.3);
+      n.stop(t + dur + 0.3);
     },
-    pluck(ev, hz, t) {
-      const a = env(0.4 * ev.vel, t, 2e-3, 0.3);
-      tone("triangle", hz[0], t, t + 0.35, "pluck").connect(a);
+    /* Bell: a sine with a quieter octave above it, long enough for the delay to catch. */
+    bell(ev, hz, t) {
+      const a = env(0.55 * ev.vel, t, 3e-3, 0.7, 0.01), b = env(0.12 * ev.vel, t, 2e-3, 0.25, 0.01);
+      tone("sine", hz[0], t, t + 0.75, "bell").connect(a);
+      tone("sine", hz[0] * 2, t, t + 0.3, "bell").connect(b);
       a.connect(X.siren.in);
+      b.connect(X.siren.in);
     }
   };
   G.play = (ev, hz, t, sd, S) => {

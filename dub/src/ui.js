@@ -213,6 +213,7 @@ function partAdvanced(part) {
     slider('Envelope', p + 'env'), slider('Length', p + 'length', { min: 0.05, max: 1.5, log: true, fmt: (v) => Math.round(v * 1000) + ' ms' }));
   if (part === 'pad') out.push(slider('Tone', p + 'tone', { fmt: (v) => snapped(300 * Math.pow(2, v * 4)) }));
   if (part === 'hats') out.push(slider('Tone', p + 'tone', { fmt: (v) => snapped(3000 * Math.pow(2, v * 1.8)) }), slider('Decay', p + 'decay'));
+  if (part === 'siren') out.push(choice(p + 'fx', [['mix', 'Mixed'], ['swell', 'Swell'], ['bells', 'Bells'], ['siren', 'Siren']], { cap: 'Kind' }), slider('Tone', p + 'tone', { fmt: (v) => snapped(700 * Math.pow(2, v * 3)) }));
   if (part === 'noise') out.push(h('p', { class: 'note', text: 'Tape hiss and vinyl crackle. Density is the amount of crackle.' }));
   else out.push(slider('Variation', p + 'variation'), h('div', { class: 'opts' }, toggle('Lock pattern', p + 'lock', { get: () => !!S().parts[part].lock, set: (on) => engine.setLock(part, on) })));
   return out;

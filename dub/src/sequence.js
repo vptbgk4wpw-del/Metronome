@@ -11,7 +11,7 @@ export const STEPS = 16;
 export const SWING = 0.4;                         // swing 1 delays every second sixteenth by 0.4 of a step
 
 /* Registers: the lowest frequency a part's tonic may have. Parts name a register, the tuning names the pitch. */
-export const REG = { sub: 41, conga: 185, pad: 110, stab: 165, siren: 440, pluck: 440, rim: 1400, clave: 2000 };
+export const REG = { sub: 41, conga: 185, pad: 110, stab: 165, siren: 440, rim: 1400, clave: 2000 };
 
 /* Scene: how much of each part plays. Intensity gate: below this Intensity a part stays out. */
 export const SCENES = {
@@ -261,22 +261,26 @@ function genAir(c) {
   });
 }
 
-/* Siren / FX: one gesture per phrase — a two-tone siren, a falling zap, or a three-note fragment of the scale. */
+/* Siren / FX: one gesture per phrase, mostly heard through the delay. Three kinds, all on scale tones:
+   a swell (noise through two resonances, rising into the next bar), bells (three soft notes of the scale),
+   and a slow two-tone siren. parts.siren.fx picks one kind or mixes them. */
 function genSiren(c) {
   const { tun, n } = c, v = c.V('fx');
   const oct = tun.registerOct(REG.siren), fifth = tun.fifthOf(0);
+  const pool = { swell: ['swell'], bells: ['bells'], siren: ['siren'] }[c.S.parts.siren.fx] || ['swell', 'bells', 'swell', 'siren', 'bells'];
   const out = c.each(() => []);
   const place = (bar, rankBase) => {
-    const type = pick(v, ['siren', 'fragment', 'zap', 'siren']);
+    const type = pick(v, pool);
     if (type === 'siren') {
-      const other = v() < 0.6 ? { deg: fifth, oct } : { deg: tun.step(2), oct };
-      out[bar].push(H(pick(v, [4, 8, 10]), rankBase, 0.75, 0.8, { kind: 'siren', len: pick(v, [4, 6]), rate: pick(v, [1, 2, 0.5]), notes: [{ deg: n, oct }, other] }));
-    } else if (type === 'zap') {
-      out[bar].push(H(pick(v, [7, 11, 15]), rankBase, 0.75, 0.8, { kind: 'zap', notes: [{ deg: n, oct: oct + 1 }, { deg: 0, oct }] }));
+      const other = v() < 0.6 ? { deg: fifth, oct: oct - 1 } : { deg: tun.step(2), oct: oct - 1 };
+      out[bar].push(H(pick(v, [4, 8]), rankBase, 0.75, 0.8, { kind: 'siren', len: pick(v, [6, 8]), rate: pick(v, [0.5, 0.25]), notes: [{ deg: 0, oct: oct - 1 }, other] }));
+    } else if (type === 'swell') {
+      const from = pick(v, [8, 8, 12]);                                   // ends on the next bar line
+      out[bar].push(H(from, rankBase, 0.8, 0.8, { kind: 'swell', len: STEPS - from, notes: [{ deg: 0, oct: oct + 1 }, { deg: fifth, oct: oct + 1 }] }));
     } else {
       const walk = pick(v, [[4, 2, 0], [0, 2, 4], [7, 4, 2], [2, 1, 0], [-1, 0, 2]]).map(h => tun.step(h));
       const s0 = pick(v, [2, 6, 8]);
-      walk.forEach((deg, i) => out[bar].push(H(s0 + i * 3, rankBase + i * 0.08, 0.85, 0.75 - i * 0.1, { kind: 'pluck', len: 2, notes: [{ deg, oct }] })));
+      walk.forEach((deg, i) => out[bar].push(H(s0 + i * 3, rankBase + i * 0.08, 0.85, 0.75 - i * 0.1, { kind: 'bell', len: 3, notes: [{ deg, oct }] })));
     }
   };
   place(c.bars - 1, 0.2);
