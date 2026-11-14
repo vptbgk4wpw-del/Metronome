@@ -345,6 +345,15 @@
     tone(t, first ? 2200 : 1550, 0.03, first ? 0.42 : 0.3, 'square');
   }
 
+  // The chord helper (chords.js) shares the audio graph and shows a small transport.
+  const emit = () => document.dispatchEvent(new CustomEvent('metro'));
+  window.METRO = {
+    audio() { ensureAudio(); return { ctx, out }; },
+    toggle() { if (playing) stop(); else start(); },
+    get playing() { return playing; },
+    info() { const r = rhythm(); return { name: r.name, bpm: bpmOf(r) }; },
+  };
+
   /* ------------------------------------------------------------ scheduler */
   const LOOKAHEAD = 0.12;
   let playing = false, step = 0, nextTime = 0, queue = [], hq = [], raf = 0, worker = null, intervalId = 0, wakeLock = null;
@@ -415,6 +424,7 @@
     requestWake();
     $('#play').textContent = 'Stop';
     $('#play').setAttribute('aria-pressed', 'true');
+    emit();
   }
 
   function stop() {
@@ -429,6 +439,7 @@
     releaseWake();
     $('#play').textContent = 'Start';
     $('#play').setAttribute('aria-pressed', 'false');
+    emit();
   }
 
   // Restart the cycle from step 0 on the next step boundary (rhythm changed).
@@ -785,6 +796,7 @@
     $('#bpm').textContent = b;
     $('#slider').value = b;
     $('#unit').textContent = unitGlyph(r);
+    emit();
   }
 
   function renderSheet() {
@@ -915,6 +927,8 @@
 
   document.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT') return;
+    // in the chord helper only the space bar (start / stop) belongs to the metronome
+    if (document.body.dataset.app === 'chords' && e.code !== 'Space') return;
     if (!$('#sheet').hidden && e.key === 'Escape') { closeSheet(); return; }
     if (e.code === 'Space') { e.preventDefault(); playing ? stop() : start(); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setBpm(bpmOf(rhythm()) + (e.shiftKey ? 10 : 1)); }

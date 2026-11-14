@@ -1,7 +1,7 @@
 {
-  "name": "Metronom — rytmy świata",
+  "name": "Metronom — rytmy świata i chwyty",
   "short_name": "Metronom",
-  "description": "Metronom z rytmami: latin, brazil, flamenco, greek, turkish, arabic, persian, ethiopian, hip-hop.",
+  "description": "Metronom z rytmami świata i pomocnik chwytów gitarowych: skale, mody, akordy funkowe.",
   "lang": "pl",
   "start_url": "./",
   "scope": "./",
@@ -9,6 +9,10 @@
   "orientation": "portrait",
   "background_color": "#f3f2ee",
   "theme_color": "#f3f2ee",
+  "shortcuts": [
+    { "name": "Chwyty", "url": "./#chwyty" },
+    { "name": "Metronom", "url": "./" }
+  ],
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },

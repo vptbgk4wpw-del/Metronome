@@ -9,7 +9,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Metronom">
-<meta name="description" content="Metronom z rytmami świata: latin, brazil, flamenco, greek, turkish, arabic, persian, ethiopian, hip-hop.">
+<meta name="description" content="Metronom z rytmami świata i pomocnik chwytów gitarowych: skale, mody, akordy funkowe.">
 <title>Metronom</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
@@ -20,9 +20,15 @@
 <main class="app">
 
   <header class="top">
-    <h1 class="brand">Metronom</h1>
+    <h1 class="sr">Metronom i chwyty</h1>
+    <nav class="apps" id="apps" aria-label="Narzędzie">
+      <button data-app="metro" aria-pressed="true">Metronom</button>
+      <button data-app="chords" aria-pressed="false">Chwyty</button>
+    </nav>
     <span class="beat-led" id="led" aria-hidden="true"></span>
   </header>
+
+  <div class="view" id="viewMetro">
 
   <nav class="cats" id="cats" role="tablist" aria-label="Kategoria"></nav>
 
@@ -80,6 +86,28 @@
     <button class="ctl play" id="play" aria-pressed="false">Start</button>
   </footer>
 
+  </div>
+
+  <div class="view view-chords" id="viewChords" hidden>
+    <div class="ch-bar">
+      <span class="seg" id="chMode" role="group" aria-label="Tryb">
+        <button data-mode="scale" aria-pressed="true">Skala</button>
+        <button data-mode="chord" aria-pressed="false">Akord</button>
+      </span>
+      <span class="ch-opts">
+        <button class="link" id="chThumb" title="Ile strun basowych łapiesz kciukiem">Kciuk ×3</button>
+        <button class="link" id="chNaming" title="Pisownia nut: B / B♭ albo H / B">Nuty: B</button>
+      </span>
+    </div>
+    <div class="roots" id="chRoots" role="group" aria-label="Pryma"></div>
+    <div id="chBody"></div>
+    <section class="shapes" id="chShapes"></section>
+    <footer class="controls ch-controls">
+      <button class="ctl ch-groove" id="chGroove" title="Wróć do metronomu"><span class="lbl">Groove</span><span id="chGrooveName">—</span></button>
+      <button class="ctl play" id="chPlay" aria-pressed="false">Start</button>
+    </footer>
+  </div>
+
 </main>
 
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
@@ -92,7 +120,19 @@
   </div>
 </div>
 
+<div class="sheet" id="chSheet" role="dialog" aria-modal="true" aria-labelledby="chSheetTitle" hidden>
+  <div class="sheet-inner">
+    <header class="sheet-head">
+      <h2 id="chSheetTitle">Skale</h2>
+      <button class="link" id="chCloseSheet">Zamknij</button>
+    </header>
+    <div id="chSheetList"></div>
+  </div>
+</div>
+
 <script src="rhythms.js"></script>
 <script src="app.js"></script>
+<script src="chords-lib.js"></script>
+<script src="chords.js"></script>
 </body>
 </html>

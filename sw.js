@@ -1,11 +1,13 @@
 /* Offline cache for the app shell. Bump VERSION on every release. */
-const VERSION = 'metronom-v10';
+const VERSION = 'metronom-v11';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './app.js',
   './rhythms.js',
+  './chords-lib.js',
+  './chords.js',
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/icon-180.png',

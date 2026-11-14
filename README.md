@@ -1,9 +1,11 @@
-# Metronom — rytmy świata
+# Metronom — rytmy świata i chwyty
 
 Minimalistyczny metronom z zegarem rytmicznym (styl szwajcarski / International Typographic Style) z cyklami rytmicznymi z dziewięciu kategorii:
 **Latin · Brazil · Flamenco · Greek · Turkish · Arabic · Persian · Ethiopian · Hip-hop** (122 rytmy).
 
 Rytmy są wielogłosowe: każdy głos (np. dum i tak, surdo i tamborim, kick, snare i hi-hat) ma własny tor i może grać jednocześnie z innymi.
+
+Druga zakładka, **Chwyty**, to pomocnik gitarowy: podajesz tonację albo skalę i dostajesz pasujące akordy oraz chwyty, przede wszystkim proste układy funkowe i chwyty z kciukiem na strunach basowych.
 
 Zwykła strona HTML + PWA. Nie ma zależności ani kroku budowania. Działa offline i da się ją dodać do ekranu głównego telefonu jak aplikację.
 
@@ -43,10 +45,39 @@ Lokalnie (komputer): `python3 -m http.server` w folderze repo, potem `http://loc
 - clave (son, rumba, bossa, cáscara) → jeden takt 4/4 z 16 szesnastkami, czyli puls „na dwa” kubańskiego 2-taktowego zapisu,
 - flamenco 12-miarowe → pulsy compás.
 
+## Chwyty — pomocnik gitarowy
+
+Druga zakładka w nagłówku (albo adres z `#chwyty`). Strój standardowy EADGBE. Metronom gra dalej pod spodem, więc chwyty można ćwiczyć do rytmu: pasek na dole pokazuje bieżący rytm i ma własny Start / Stop.
+
+**Skala** — wybierasz prymę i skalę (7 modów, moll harmoniczny i melodyczny, frygijska dominantowa, lidyjska dominantowa, podwójna harmoniczna, pentatoniki, bluesowa), a aplikacja pokazuje:
+
+| Element | Co pokazuje |
+|---|---|
+| Dźwięki skali | nuty i stopnie; nuta charakterystyczna modu na czerwono |
+| Gryf | skala na progach 0–12: tonika czerwona, dźwięki wybranego akordu pełne, reszta skali pusta; „pokaż nuty / stopnie” zmienia napisy |
+| Akordy skali | akord septymowy na każdym stopniu; czerwona kropka = akord zawiera nutę charakterystyczną. Pod spodem wszystkie akordy, które mieszczą się w skali na wybranym stopniu (sus, 6, 9, 11, 13…) |
+| Vampy i progresje | typowe dla danej skali (np. dorycka i7 – IV7). Dotknięcie pokazuje akordy vampu **w jednej pozycji** na tych samych strunach; − / + przesuwa pozycję, obok wybór strun |
+| Chwyty | diagramy dla wybranego akordu; dotknięcie diagramu gra akord |
+
+**Akord** — dowolny akord bez skali: pryma + rodzaj, składniki na gryfie i chwyty.
+
+Rodzaje chwytów:
+- **Najprostsze** — po kilka najłatwiejszych układów funkowych i z kciukiem.
+- **Funk** — małe układy na 3–4 strunach (D‑G‑B‑e) we wszystkich przewrotach w górę gryfu, często bez prymy.
+- **Kciuk** — kciuk od góry gryfu łapie bas na strunie E, na E+A albo na E+A+D; reszta palców gra górę. „Kciuk ×3” w prawym górnym rogu ustawia, ile strun obejmujesz kciukiem (3 / 2 / 1 / bez kciuka).
+- **Pełne** — chwyty otwarte i barré.
+
+Na diagramie: czerwona kropka = pryma, T = kciuk, 1–4 = palce, × = struna tłumiona, pod strunami składniki akordu (1, ♭3, 5, ♭7…). „Nuty: B / H” przełącza pisownię międzynarodową (B, B♭) i polską (H, B).
+
+Chwyty funkowe i część chwytów z kciukiem są generowane z reguł (dźwięki akordu, rozpiętość do 4 progów, zasięg kciuka), a palcowanie dobiera prosta heurystyka — traktuj je jako propozycję. `node tools/check-chords.js` sprawdza, że każdy chwyt zawiera tylko dźwięki akordu i wszystkie składniki wymagane; `--dump A:m7 E:9` wypisuje chwyty tekstem.
+
 ## Pliki
 
 - `index.html`, `styles.css`, `app.js`: interfejs i silnik (Web Audio, harmonogram z wyprzedzeniem, syntetyzowane brzmienia: darbuka, kudüm, tombak, kebero, sekcja latynoska (clave, campana, cáscara, bongó, conga, tumba, bas, tambora, llamador, güiro, güira, maracas), palmas, surdo/tamborim/ganzá, zabumba/bacalhau/trójkąt, automat perkusyjny)
 - `rhythms.js`: **wszystkie rytmy** jako dane. Rytm to albo jeden ciąg znaków (`pattern`, jeden znak na krok: `D` nisko/mocno, `T` wysoko, `K` lekko, `.` pauza; we flamenco `X` / `x` / `o`), albo osobne tory (`tracks`, np. `{ D: 'x...x...', T: '..x...x.' }`), gdy kilka głosów gra jednocześnie. Hip-hop ma tory `D` kick, `T` snare, `G` ghost, `K` hi-hat, `O` open hat; `swing` = swing w stylu MPC. Rytm może mieć własny zestaw (`kit` + `strokes`, np. forró: zabumba + trójkąt). W torze `X` = uderzenie akcentowane / długie, `x` = lżejsze (np. campana: usta / korpus, güiro: długie / krótkie). `micro` = mikrotiming: przesunięcia w ułamkach kroku, powtarzane co miarę (np. samba `[0, 0, -0.06, -0.16]`), wspólne lub osobne dla torów.
+- `chords-lib.js`: skale, akordy, tabela chwytów przesuwnych i otwartych, generator małych układów i układów z kciukiem (bez DOM)
+- `chords.js`: widok „Chwyty” (diagramy, gryf, odsłuch akordu)
+- `tools/check-chords.js`: sprawdzenie danych chwytów
 - `sw.js`, `manifest.webmanifest`, `icons/`: PWA (offline, ikona)
 
 ## Źródła i uwagi o rytmach
